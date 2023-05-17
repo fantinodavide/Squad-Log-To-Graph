@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "esbuild index.js --bundle --outfile=out.js --platform=node --format=esm --main-fields=module,main"
+    "build": "esbuild index.js --bundle --outfile=build/out.js --platform=node --format=esm --packages=external --minify"
   },
   "author": "",
   "license": "ISC",
