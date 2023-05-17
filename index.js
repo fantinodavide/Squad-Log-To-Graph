@@ -32,8 +32,9 @@ async function main() {
         }
         res = null;
 
-        regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogNet: AddClientConnection: Added client connection: \[UNetConnection\] RemoteAddr: .+, Name: (.+), Driver: GameNetDriver .+, IsServer: YES, PC: NULL, Owner: NULL, UniqueId: INVALID/;
-        // regex = /LogNet: Client netspeed is 18000/;
+        // regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogNet: AddClientConnection: Added client connection: \[UNetConnection\] RemoteAddr: .+, Name: (.+), Driver: GameNetDriver .+, IsServer: YES, PC: NULL, Owner: NULL, UniqueId: INVALID/;
+        regex = /LogNet: Join succeeded/;
+        // regex = /LogNet: Client netspeed is/;
         res = regex.exec(line);
         // console.log(res);
         if (res) {
@@ -45,7 +46,7 @@ async function main() {
 
         // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: .+, Driver: GameNetDriver .+, IsServer: YES, PC: (.+), Owner: .+/;
         // regex = /LogOnline: STEAM: \d+ has been removed/;
-        regex = /LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == \d\. Name: \[UChannel\] ChIndex: \d, Closing: \d \[UNetConnection\] RemoteAddr: \d+\:\d+, Name: .+, Driver: GameNetDriver .+, IsServer: YES, PC: .+, Owner: .+/;
+        regex = /LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == \d\. Name: \[UChannel\] ChIndex: \d, Closing: \d \[UNetConnection\] RemoteAddr: \d+\:\d+, Name: .+, Driver: GameNetDriver .+, IsServer: YES, PC: .+, Owner: BP_PlayerController_C_.+, UniqueId: Steam:UNKNOWN/;
         res = regex.exec(line);
         if (res) {
             playerPoints[ playerPoints.length - 1 ].y -= 1;
@@ -84,6 +85,14 @@ async function main() {
             ]
         },
         options: {
+            // layout: {
+            //     padding: {
+            //         left: 200,
+            //         right: 50,
+            //         top: 50,
+            //         bottom: 50
+            //     }
+            // },
             scales: {
                 x: {
                     min: 0,
@@ -91,7 +100,7 @@ async function main() {
                 },
                 y: {
                     min: 0,
-                    max: 105,
+                    max: 100,
                     ticks: {
                         stepSize: 5
                     },
