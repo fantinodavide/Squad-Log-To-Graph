@@ -204,7 +204,10 @@ function drawGraph(logs /*string*/) {
             scales: {
                 x: {
                     min: 0,
-                    max: chartPoints.length
+                    max: chartPoints.length,
+                    grid: {
+                        lineWidth: 0
+                    }
                 },
                 y: {
                     min: 0,
@@ -212,6 +215,9 @@ function drawGraph(logs /*string*/) {
                     ticks: {
                         stepSize: 5
                     },
+                    grid: {
+                        lineWidth: 0
+                    }
                     // grid: {
                     //     lineWidth: 5,
                     //     color: function (context) {
