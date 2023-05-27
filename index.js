@@ -11,6 +11,9 @@ async function main() {
     const files = fs.readdirSync(INPUT_DIR).filter(f => f.endsWith('.log'));
     console.log(`Logs found (${files.length}):\n > ${files.join(`\n > `)}`);
 
+    if (!fs.existsSync(INPUT_DIR)) fs.mkdirSync(INPUT_DIR)
+    if (!fs.existsSync(OUPUT_DIR)) fs.mkdirSync(OUPUT_DIR)
+
     for (let logFile of files) {
         const logPath = path.join(INPUT_DIR, logFile);
         const fileNameNoExt = logFile.replace(/\.[^\.]+$/, '');
@@ -140,7 +143,7 @@ function drawGraph(logs /*string*/) {
         }
     }
 
-    const chartCanvas = createCanvas(Math.min(splitLogs.length / 120, 30000), 1500);
+    const chartCanvas = createCanvas(Math.max(Math.min(splitLogs.length / 120, 30000), 3000), 1500);
     Chart.defaults.font.size = 40;
     const chart = new Chart(chartCanvas, {
         type: "line",
@@ -209,20 +212,20 @@ function drawGraph(logs /*string*/) {
                     ticks: {
                         stepSize: 5
                     },
-                    grid: {
-                        lineWidth: 56,
-                        color: function (context) {
-                            if (context.tick.value <= 15) {
-                                return "#FF000018";
-                            } else if (context.tick.value <= 25) {
-                                return "#FFFF0018";
-                            } else if (context.tick.value <= 50) {
-                                return "#00FF0018";
-                            }
+                    // grid: {
+                    //     lineWidth: 5,
+                    //     color: function (context) {
+                    //         if (context.tick.value <= 15) {
+                    //             return "#FF000018";
+                    //         } else if (context.tick.value <= 25) {
+                    //             return "#FFFF0018";
+                    //         } else if (context.tick.value <= 50) {
+                    //             return "#00FF0018";
+                    //         }
 
-                            return "#00000000"
-                        },
-                    },
+                    //         return "#00000000"
+                    //     },
+                    // },
                 }
             }
         },
@@ -230,11 +233,24 @@ function drawGraph(logs /*string*/) {
             {
                 id: 'customCanvasBackgroundColor',
                 beforeDraw: (chart, args, options) => {
-                    const { ctx } = chart;
+                    const { ctx, chartArea } = chart;
+                    // console.log(chartArea.left, chart.height - chartArea.height, chartArea.width, +chart.height - +chartArea.top)
                     ctx.save();
                     ctx.globalCompositeOperation = 'destination-over';
+
+                    ctx.fillStyle = '#00FF0018';
+                    ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * 0.5), chartArea.width, chartArea.height * 0.25);
+
+                    ctx.fillStyle = '#FFFF0018';
+                    ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * 0.25), chartArea.width, chartArea.height * 0.10);
+
+                    ctx.fillStyle = '#FF000018';
+                    ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * 0.15), chartArea.width, chartArea.height * 0.15);
+
                     ctx.fillStyle = options.color || '#222224';
                     ctx.fillRect(0, 0, chart.width, chart.height);
+
+                    // // ctx.fillRect(0, 0, chart.width, chart.height/2);
                     ctx.restore();
                 }
             },
