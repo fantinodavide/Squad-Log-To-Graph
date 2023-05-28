@@ -175,6 +175,12 @@ function drawGraph(logs /*string*/) {
             })
         }
     }
+    const tpsColorPlugin = {
+        id: 'tpsColor',
+        beforeDraw(chart, args, options) {
+            console.log(args)
+        }
+    }
 
     const chartCanvas = createCanvas(Math.max(Math.min(splitLogs.length / 120, 30000), 3500), 1600);
     Chart.defaults.font.size = 40;
@@ -188,8 +194,29 @@ function drawGraph(logs /*string*/) {
                     pointRadius: 0,
                     label: 'TickRate',
                     data: chartPoints,
-                    backgroundColor: "#00BBFF",
-                    borderColor: "#00BBFF",
+                    // backgroundColor: "#00BBFF",
+                    // borderColor: "#00BBFF",
+                    segment: {
+                        borderColor: (context) => {
+                            // console.log(context);
+                            // var index = context.dataIndex;
+                            // var value = context.dataset.data[ index ].y;
+                            const defaultColor = '#00BBFF'
+                            const p0 = context.p0.parsed?.y
+                            const p1 = context.p1.parsed?.y
+                            let value = Math.min(p0, p1)
+                            if (Math.abs(p0 - p1) > 15) return defaultColor;
+
+                            let color;
+                            if (value <= 15) color = '#DD0000';
+                            else if (value > 15 && value <= 25) color = '#FFDD00';
+                            else color = defaultColor
+                            // console.log(color)
+                            // return value < 25 ? '#FF0000' : '#00BBFF'
+                            return color;
+                        }
+
+                    }
                 },
                 {
                     pointStyle: 'circle',
@@ -307,7 +334,7 @@ function drawGraph(logs /*string*/) {
                     ctx.restore();
                 }
             },
-            layerTextPlugin
+            layerTextPlugin,
         ]
 
 
