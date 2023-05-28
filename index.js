@@ -28,6 +28,10 @@ async function main() {
 
 function drawGraph(logs /*string*/) {
     let chartPoints = [];
+    let queuePoints = [ {
+        x: 0,
+        y: 0
+    } ];
     let playerPoints = [ {
         x: 0,
         y: 0
@@ -36,10 +40,14 @@ function drawGraph(logs /*string*/) {
         x: 0,
         y: 0
     } ];
+    let maxQueue = 0;
     let layers = []
 
     const splitLogs = logs.split('\n');
-    for (let line of splitLogs) {
+    for (let lI in splitLogs) {
+        const line = splitLogs[ lI ];
+        // if (lI > 250000) continue;
+
         let regex, res;
         regex = /\[(.+)\]\[\d+]LogSquad: .+: Server Tick Rate: (\d+.?\d+)/;
         res = regex.exec(line);
@@ -54,6 +62,10 @@ function drawGraph(logs /*string*/) {
                 x: obj.x,
                 y: playerPoints[ playerPoints.length - 1 ].y
             })
+            queuePoints.push({
+                x: obj.x,
+                y: queuePoints[ queuePoints.length - 1 ].y
+            })
             hostClosedConnectionPoints.push({
                 x: obj.x,
                 y: 0
@@ -63,13 +75,30 @@ function drawGraph(logs /*string*/) {
             continue;
         }
 
-        // regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogNet: AddClientConnection: Added client connection: \[UNetConnection\] RemoteAddr: .+, Name: (.+), Driver: GameNetDriver .+, IsServer: YES, PC: NULL, Owner: NULL, UniqueId: INVALID/;
+
+        regex = /NotifyAcceptingChannel/
+        res = regex.exec(line);
+        if (res) {
+            queuePoints[ queuePoints.length - 1 ].y += 1;
+            if (queuePoints[ queuePoints.length - 1 ].y > maxQueue) maxQueue = queuePoints[ queuePoints.length - 1 ].y;
+            continue;
+        }
+
+        regex = /CloseBunch/
+        res = regex.exec(line);
+        if (res) {
+            queuePoints[ queuePoints.length - 1 ].y -= 1;
+            // continue;
+        }
+
+
         regex = /LogNet: Join succeeded/;
         // regex = /LogNet: Client netspeed is/;
         res = regex.exec(line);
         // console.log(res);
         if (res) {
             playerPoints[ playerPoints.length - 1 ].y += 1;
+            // queuePoints[ queuePoints.length - 1 ].y -= 1;
             // console.log(playerPoints[ playerPoints.length - 1 ].y)
             continue;
         }
@@ -80,6 +109,7 @@ function drawGraph(logs /*string*/) {
         res = regex.exec(line);
         if (res) {
             playerPoints[ playerPoints.length - 1 ].y -= 1;
+            // queuePoints[ queuePoints.length - 1 ].y -= 1;
             continue;
         }
 
@@ -87,6 +117,7 @@ function drawGraph(logs /*string*/) {
         res = regex.exec(line);
         if (res) {
             hostClosedConnectionPoints[ hostClosedConnectionPoints.length - 1 ].y += 3;
+            // queuePoints[ queuePoints.length - 1 ].y -= 1;
             continue;
         }
 
@@ -95,7 +126,7 @@ function drawGraph(logs /*string*/) {
         if (res) {
             layers.push({
                 x: 0,
-                y: 100,
+                y: 150,
                 label: res[ 2 ]
             })
             // layers[ layers.length - 1 ].y += 3;
@@ -107,7 +138,7 @@ function drawGraph(logs /*string*/) {
         if (res) {
             layers.push({
                 x: chartPoints[ chartPoints.length - 1 ].x,
-                y: 100,
+                y: 150,
                 label: res[ 2 ]
             })
             // layers[ layers.length - 1 ].y += 3;
@@ -129,13 +160,15 @@ function drawGraph(logs /*string*/) {
         afterDatasetDraw(chart, args, pluginOptions) {
             // console.log(args.meta.dataset.label)
             const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
+            const { chartArea } = chart;
             if (args.index != 3) return;
 
+            const chartMaxY = chart.scales.y.max;
             data.datasets[ args.index ].data.forEach((dataPoint, index) => {
                 ctx.font = 'bolder 35px sans-serif';
                 ctx.fillStyle = "#888888";
                 ctx.save();
-                ctx.translate(x.getPixelForValue(dataPoint.x) + 30, 550);
+                ctx.translate(x.getPixelForValue(dataPoint.x) + 30, chartArea.top + chartArea.height - (chartArea.height * (50 / chartMaxY)) - 30);
                 ctx.rotate(Math.PI + 2)
                 ctx.fillText(dataPoint.label, 0, 0)
                 ctx.restore();
@@ -143,7 +176,7 @@ function drawGraph(logs /*string*/) {
         }
     }
 
-    const chartCanvas = createCanvas(Math.max(Math.min(splitLogs.length / 120, 30000), 3000), 1500);
+    const chartCanvas = createCanvas(Math.max(Math.min(splitLogs.length / 120, 30000), 3500), 1600);
     Chart.defaults.font.size = 40;
     const chart = new Chart(chartCanvas, {
         type: "line",
@@ -189,7 +222,18 @@ function drawGraph(logs /*string*/) {
                     // borderColor: "#FFCC0033",
                     backgroundColor: "#FFFFFF22",
                     borderColor: "#FFFFFF22",
-                }
+                },
+                {
+                    pointStyle: 'circle',
+                    pointRadius: 0,
+                    label: 'Queue Count',
+                    data: queuePoints,
+                    backgroundColor: "#FF446666",
+                    borderColor: "#FF446666",
+                    // backgroundColor: "#BB2244",
+                    // borderColor: "#BB2244",
+                    // backgroundColor: "#FF0000"
+                },
             ]
         },
         options: {
@@ -211,7 +255,7 @@ function drawGraph(logs /*string*/) {
                 },
                 y: {
                     min: 0,
-                    max: 100,
+                    max: maxQueue,
                     ticks: {
                         stepSize: 5
                     },
@@ -240,18 +284,21 @@ function drawGraph(logs /*string*/) {
                 id: 'customCanvasBackgroundColor',
                 beforeDraw: (chart, args, options) => {
                     const { ctx, chartArea } = chart;
+                    // console.log(chart)
                     // console.log(chartArea.left, chart.height - chartArea.height, chartArea.width, +chart.height - +chartArea.top)
                     ctx.save();
                     ctx.globalCompositeOperation = 'destination-over';
 
+                    const chartMaxY = chart.scales.y.max;
+
                     ctx.fillStyle = '#00FF0018';
-                    ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * 0.5), chartArea.width, chartArea.height * 0.25);
+                    ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * (50 / chartMaxY)), chartArea.width, chartArea.height * (25 / chartMaxY));
 
                     ctx.fillStyle = '#FFFF0018';
-                    ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * 0.25), chartArea.width, chartArea.height * 0.10);
+                    ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * (25 / chartMaxY)), chartArea.width, chartArea.height * (10 / chartMaxY));
 
                     ctx.fillStyle = '#FF000018';
-                    ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * 0.15), chartArea.width, chartArea.height * 0.15);
+                    ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * (15 / chartMaxY)), chartArea.width, chartArea.height * (15 / chartMaxY));
 
                     ctx.fillStyle = options.color || '#222224';
                     ctx.fillRect(0, 0, chart.width, chart.height);
