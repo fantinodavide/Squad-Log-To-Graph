@@ -27,6 +27,7 @@ async function main() {
 }
 
 function drawGraph(logs /*string*/) {
+    let serverName = '';
     let chartPoints = [];
     let queuePoints = [ {
         x: 0,
@@ -37,6 +38,14 @@ function drawGraph(logs /*string*/) {
         y: 0
     } ];
     let hostClosedConnectionPoints = [ {
+        x: 0,
+        y: 0
+    } ];
+    let serverMovePoints = [ {
+        x: 0,
+        y: 0
+    } ];
+    let fragPoints = [ {
         x: 0,
         y: 0
     } ];
@@ -70,11 +79,25 @@ function drawGraph(logs /*string*/) {
                 x: obj.x,
                 y: 0
             })
+            fragPoints.push({
+                x: obj.x,
+                y: 0
+            })
+            serverMovePoints.push({
+                x: obj.x,
+                y: 0
+            })
 
             // console.log('TPS', obj);
             continue;
         }
 
+        regex = / ServerName: \'(.+)\' RegisterTimeout:/
+        res = regex.exec(line);
+        if (res) {
+            serverName = res[ 1 ];
+            // continue;
+        }
 
         regex = /NotifyAcceptingChannel/
         res = regex.exec(line);
@@ -145,6 +168,20 @@ function drawGraph(logs /*string*/) {
             continue;
         }
 
+        regex = /Frag_C/;
+        res = regex.exec(line);
+        if (res) {
+            fragPoints[ fragPoints.length - 1 ].y += 1;
+            continue;
+        }
+
+        regex = /ServerMove\: TimeStamp expired/;
+        res = regex.exec(line);
+        if (res) {
+            serverMovePoints[ serverMovePoints.length - 1 ].y += 0.05;
+            continue;
+        }
+
         // regex = /LogOnlineGame: Display: Kicking player: .+ ; Reason = Host closed the connection/;
         // res = regex.exec(line);
         // if (res) {
@@ -161,7 +198,7 @@ function drawGraph(logs /*string*/) {
             // console.log(args.meta.dataset.label)
             const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
             const { chartArea } = chart;
-            if (args.index != 3) return;
+            if (args.index != 4) return;
 
             const chartMaxY = chart.scales.y.max;
             data.datasets[ args.index ].data.forEach((dataPoint, index) => {
@@ -175,15 +212,116 @@ function drawGraph(logs /*string*/) {
             })
         }
     }
+    const serverNamePlugin = {
+        id: 'layerText',
+        afterDatasetDraw(chart, args, pluginOptions) {
+            // console.log(args.meta.dataset.label)
+            const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
+            const { chartArea } = chart;
+            if (args.index != 3) return;
+
+            const chartMaxY = chart.scales.y.max;
+            data.datasets[ args.index ].data.forEach((dataPoint, index) => {
+                ctx.font = 'bolder 80px sans-serif';
+                ctx.fillStyle = "#999999";
+                ctx.save();
+                ctx.translate(200, 80);
+                ctx.fillText(serverName, 0, 0)
+                ctx.restore();
+            })
+        }
+    }
     const tpsColorPlugin = {
         id: 'tpsColor',
-        beforeDraw(chart, args, options) {
-            console.log(args)
+        // beforeRender: (chart, args, options) => {
+        //     // const c = x.chart;
+        //     //  console.log(options)
+
+        //     const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
+        //     const { chartArea } = chart;
+
+        //     const dataset = data.datasets[ 0 ];
+        //     const yScale = y;
+        //     const yPos = yScale.getPixelForValue(0);
+
+        //     // console.log(chart.height)
+        //     const gradientFill = ctx.createLinearGradient(0, 0, 0, chart.height);
+        //     gradientFill.addColorStop(0, '#FF0000');
+        //     gradientFill.addColorStop(1, '#00FF00');
+
+
+        //     // ctx.createLinearGradient()
+        //     // gradientFill.addColorStop(yPos / chart.height, 'rgb(86,188,77)');
+        //     // gradientFill.addColorStop(yPos / chart.height, 'rgb(229,66,66)');
+
+
+        //     // const model = x._meta[ Object.keys(dataset._meta)[ 0 ] ].dataset._model;
+        //     const dtMeta = chart.getDatasetMeta(0);
+        //     const model = dtMeta.dataset;
+        //     // console.log(chart.getDatasetMeta(0).dataset.getProps())
+        //     console.log(model)
+
+        //     // chart.getDatasetMeta(0).dataset.getProps()._model.borderColor = gradientFill
+
+        //     // const model = dts_meta[ Object.keys(dtset._meta)[ 0 ] ].dataset._model;
+
+        // },
+    }
+    // const layerTextPlugin = {
+    //     id: 'layerText',
+    //     afterDatasetDraw(chart, args, pluginOptions) {
+    //         // console.log(args.meta.dataset.label)
+    //         const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
+    //         const { chartArea } = chart;
+    //         if (args.index != 3) return;
+
+    //         const chartMaxY = chart.scales.y.max;
+    //         data.datasets[ args.index ].data.forEach((dataPoint, index) => {
+    //             ctx.font = 'bolder 35px sans-serif';
+    //             ctx.fillStyle = "#888888";
+    //             ctx.save();
+    //             ctx.translate(x.getPixelForValue(dataPoint.x) + 30, chartArea.top + chartArea.height - (chartArea.height * (50 / chartMaxY)) - 30);
+    //             ctx.rotate(Math.PI + 2)
+    //             ctx.fillText(dataPoint.label, 0, 0)
+    //             ctx.restore();
+    //         })
+    //     }
+    // }
+
+    const ENABLE_TPS_BACKGROUND = true
+    const chartBackground = {
+        id: 'customCanvasBackgroundColor',
+        beforeDraw: (chart, args, options) => {
+            const { ctx, chartArea } = chart;
+            // console.log(chart)
+            // console.log(chartArea.left, chart.height - chartArea.height, chartArea.width, +chart.height - +chartArea.top)
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-over';
+
+            const chartMaxY = chart.scales.y.max;
+
+            if (ENABLE_TPS_BACKGROUND) {
+                ctx.fillStyle = '#00FF0018';
+                ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * (50 / chartMaxY)), chartArea.width, chartArea.height * (25 / chartMaxY));
+
+                ctx.fillStyle = '#FFFF0018';
+                ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * (25 / chartMaxY)), chartArea.width, chartArea.height * (10 / chartMaxY));
+
+                ctx.fillStyle = '#FF000018';
+                ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * (15 / chartMaxY)), chartArea.width, chartArea.height * (15 / chartMaxY));
+            }
+
+            ctx.fillStyle = options.color || '#222224';
+            ctx.fillRect(0, 0, chart.width, chart.height);
+
+            // // ctx.fillRect(0, 0, chart.width, chart.height/2);
+            ctx.restore();
         }
     }
 
-    const chartCanvas = createCanvas(Math.max(Math.min(splitLogs.length / 120, 30000), 3500), 1600);
+    const chartCanvas = createCanvas(Math.max(Math.min(splitLogs.length / 120, 30000), 4000), 1800);
     Chart.defaults.font.size = 40;
+
     const chart = new Chart(chartCanvas, {
         type: "line",
         data: {
@@ -194,27 +332,42 @@ function drawGraph(logs /*string*/) {
                     pointRadius: 0,
                     label: 'TickRate',
                     data: chartPoints,
-                    // backgroundColor: "#00BBFF",
-                    // borderColor: "#00BBFF",
-                    segment: {
-                        borderColor: (context) => {
-                            // console.log(context);
-                            // var index = context.dataIndex;
-                            // var value = context.dataset.data[ index ].y;
-                            const defaultColor = '#00BBFF'
-                            const p0 = context.p0.parsed?.y
-                            const p1 = context.p1.parsed?.y
-                            let value = Math.min(p0, p1)
-                            if (Math.abs(p0 - p1) > 15) return defaultColor;
+                    backgroundColor: "#00BBFF",
+                    borderColor: function (context) {
+                        const chart = context.chart;
+                        const { ctx, chartArea } = chart;
 
-                            let color;
-                            if (value <= 15) color = '#DD0000';
-                            else if (value > 15 && value <= 25) color = '#FFDD00';
-                            else color = defaultColor
-                            // console.log(color)
-                            // return value < 25 ? '#FF0000' : '#00BBFF'
-                            return color;
-                        }
+                        if (!chartArea) return;
+
+                        const gradient = ctx.createLinearGradient(0, chart.scales.y.getPixelForValue(0), 0, chart.scales.y.getPixelForValue(50));
+
+                        gradient.addColorStop(15 / 50, 'red');
+                        gradient.addColorStop(15 / 50, 'yellow');
+                        gradient.addColorStop(25 / 50, 'yellow');
+                        gradient.addColorStop(25 / 50, '#00BBFF');
+                        // gradient.addColorStop(25 / 50, 'green');
+
+                        return gradient
+                    },
+                    segment: {
+                        // borderColor: (context) => {
+                        //     // console.log(context);
+                        //     // var index = context.dataIndex;
+                        //     // var value = context.dataset.data[ index ].y;
+                        //     const defaultColor = '#00BBFF'
+                        //     const p0 = context.p0.parsed?.y
+                        //     const p1 = context.p1.parsed?.y
+                        //     let value = Math.min(p0, p1)
+                        //     if (Math.abs(p0 - p1) > 15) return defaultColor;
+
+                        //     let color;
+                        //     if (value <= 15) color = '#DD0000';
+                        //     else if (value > 15 && value <= 25) color = '#FFDD00';
+                        //     else color = defaultColor
+                        //     // console.log(color)
+                        //     // return value < 25 ? '#FF0000' : '#00BBFF'
+                        //     return color;
+                        // }
 
                     }
                 },
@@ -230,11 +383,21 @@ function drawGraph(logs /*string*/) {
                 {
                     pointStyle: 'circle',
                     pointRadius: 0,
+                    label: 'Queue Count',
+                    data: queuePoints,
+                    backgroundColor: "#FF446666",
+                    borderColor: "#FF446666",
+                    // backgroundColor: "#BB2244",
+                    // borderColor: "#BB2244",
+                    // backgroundColor: "#FF0000"
+                },
+                {
+                    pointStyle: 'circle',
+                    pointRadius: 0,
                     label: 'HostClosedConnection*3',
                     data: hostClosedConnectionPoints,
                     backgroundColor: "#FFAA66",
                     borderColor: "#FF8822",
-                    // backgroundColor: "#FF0000"
                 },
                 {
                     type: 'bar',
@@ -253,25 +416,33 @@ function drawGraph(logs /*string*/) {
                 {
                     pointStyle: 'circle',
                     pointRadius: 0,
-                    label: 'Queue Count',
-                    data: queuePoints,
-                    backgroundColor: "#FF446666",
-                    borderColor: "#FF446666",
-                    // backgroundColor: "#BB2244",
-                    // borderColor: "#BB2244",
-                    // backgroundColor: "#FF0000"
+                    label: 'Explosions',
+                    data: fragPoints,
+                    backgroundColor: "#ba01ba",
+                    borderColor: "#ba01ba",
+                },
+                {
+                    pointStyle: 'circle',
+                    pointRadius: 0,
+                    label: 'ServerMoveTSExp/20',
+                    data: serverMovePoints,
+                    backgroundColor: "#8888FF",
+                    borderColor: "#8888FF",
                 },
             ]
         },
         options: {
             // layout: {
-            //     padding: {
-            //         left: 200,
-            //         right: 50,
-            //         top: 50,
-            //         bottom: 50
-            //     }
+            //     padding: 50
             // },
+            layout: {
+                padding: {
+                    left: 200,
+                    right: 50,
+                    top: 150,
+                    bottom: 50
+                }
+            },
             scales: {
                 x: {
                     min: 0,
@@ -282,7 +453,7 @@ function drawGraph(logs /*string*/) {
                 },
                 y: {
                     min: 0,
-                    max: maxQueue,
+                    max: Math.max(100, maxQueue),
                     ticks: {
                         stepSize: 5
                     },
@@ -307,34 +478,10 @@ function drawGraph(logs /*string*/) {
             }
         },
         plugins: [
-            {
-                id: 'customCanvasBackgroundColor',
-                beforeDraw: (chart, args, options) => {
-                    const { ctx, chartArea } = chart;
-                    // console.log(chart)
-                    // console.log(chartArea.left, chart.height - chartArea.height, chartArea.width, +chart.height - +chartArea.top)
-                    ctx.save();
-                    ctx.globalCompositeOperation = 'destination-over';
-
-                    const chartMaxY = chart.scales.y.max;
-
-                    ctx.fillStyle = '#00FF0018';
-                    ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * (50 / chartMaxY)), chartArea.width, chartArea.height * (25 / chartMaxY));
-
-                    ctx.fillStyle = '#FFFF0018';
-                    ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * (25 / chartMaxY)), chartArea.width, chartArea.height * (10 / chartMaxY));
-
-                    ctx.fillStyle = '#FF000018';
-                    ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * (15 / chartMaxY)), chartArea.width, chartArea.height * (15 / chartMaxY));
-
-                    ctx.fillStyle = options.color || '#222224';
-                    ctx.fillRect(0, 0, chart.width, chart.height);
-
-                    // // ctx.fillRect(0, 0, chart.width, chart.height/2);
-                    ctx.restore();
-                }
-            },
+            chartBackground,
             layerTextPlugin,
+            tpsColorPlugin,
+            serverNamePlugin
         ]
 
 
