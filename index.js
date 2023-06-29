@@ -288,7 +288,7 @@ function drawGraph(logs /*string*/) {
     //     }
     // }
 
-    const ENABLE_TPS_BACKGROUND = true
+    const ENABLE_TPS_BACKGROUND = false
     const chartBackground = {
         id: 'customCanvasBackgroundColor',
         beforeDraw: (chart, args, options) => {
@@ -322,6 +322,41 @@ function drawGraph(logs /*string*/) {
     const chartCanvas = createCanvas(Math.max(Math.min(splitLogs.length / 120, 30000), 4000), 1800);
     Chart.defaults.font.size = 40;
 
+    function tpsColorGradient(context) {
+        const chart = context.chart;
+        const { ctx, chartArea } = chart;
+
+        if (!chartArea) return;
+
+        const gradient = ctx.createLinearGradient(0, chart.scales.y.getPixelForValue(0), 0, chart.scales.y.getPixelForValue(50));
+
+        gradient.addColorStop(15 / 50, 'red');
+        gradient.addColorStop(15 / 50, 'yellow');
+        gradient.addColorStop(25 / 50, 'yellow');
+        gradient.addColorStop(25 / 50, '#00BBFF');
+        // gradient.addColorStop(25 / 50, 'green');
+
+        return gradient
+    }
+
+    function tpsColorGradientBackground(context) {
+        const chart = context.chart;
+        const { ctx, chartArea } = chart;
+
+        if (!chartArea) return;
+
+        const gradient = ctx.createLinearGradient(0, chart.scales.y.getPixelForValue(0), 0, chart.scales.y.getPixelForValue(50));
+
+        const opacity = 29;
+        gradient.addColorStop(15 / 50, `#FF0000${opacity}`);
+        gradient.addColorStop(15 / 50, `#FFFF00${opacity}`);
+        gradient.addColorStop(25 / 50, `#FFFF00${opacity}`);
+        gradient.addColorStop(25 / 50, `#00BBFF${opacity}`);
+        // gradient.addColorStop(25 / 50, 'green');
+
+        return gradient
+    }
+
     const chart = new Chart(chartCanvas, {
         type: "line",
         data: {
@@ -332,23 +367,9 @@ function drawGraph(logs /*string*/) {
                     pointRadius: 0,
                     label: 'TickRate',
                     data: chartPoints,
-                    backgroundColor: "#00BBFF",
-                    borderColor: function (context) {
-                        const chart = context.chart;
-                        const { ctx, chartArea } = chart;
-
-                        if (!chartArea) return;
-
-                        const gradient = ctx.createLinearGradient(0, chart.scales.y.getPixelForValue(0), 0, chart.scales.y.getPixelForValue(50));
-
-                        gradient.addColorStop(15 / 50, 'red');
-                        gradient.addColorStop(15 / 50, 'yellow');
-                        gradient.addColorStop(25 / 50, 'yellow');
-                        gradient.addColorStop(25 / 50, '#00BBFF');
-                        // gradient.addColorStop(25 / 50, 'green');
-
-                        return gradient
-                    },
+                    fill: true,
+                    backgroundColor: tpsColorGradientBackground,
+                    borderColor: tpsColorGradient,
                     segment: {
                         // borderColor: (context) => {
                         //     // console.log(context);
@@ -480,7 +501,7 @@ function drawGraph(logs /*string*/) {
         plugins: [
             chartBackground,
             layerTextPlugin,
-            tpsColorPlugin,
+            // tpsColorPlugin,
             serverNamePlugin
         ]
 
