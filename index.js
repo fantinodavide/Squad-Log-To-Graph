@@ -222,7 +222,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         let minCount = 200;
         switch (cK) {
             case 'Explosions':
-                minCount = 100;
+                minCount = 200;
                 break;
             case 'ServerMoveTimeStampExpired':
                 minCount = 2000;
