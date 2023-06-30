@@ -20,13 +20,13 @@ async function main() {
         const outputPath = path.join(OUPUT_DIR, `${fileNameNoExt}.png`)
 
         const logs = fs.readFileSync(logPath).toString();
-        const graph = drawGraph(logs)
+        const graph = drawGraph(logs, fileNameNoExt)
 
         fs.writeFileSync(outputPath, graph.toBuffer("image/png"))
     }
 }
 
-function drawGraph(logs /*string*/) {
+function drawGraph(logs /*string*/, fileNameNoExt) {
     let serverName = '';
     let chartPoints = [];
     let queuePoints = [ {
@@ -51,6 +51,10 @@ function drawGraph(logs /*string*/) {
     } ];
     let maxQueue = 0;
     let layers = []
+
+    let explosionCountersPerController = []
+    let serverMoveTimestampExpiredPerPawn = []
+    let pawnsToPlayerNames = []
 
     const splitLogs = logs.split('\n');
     for (let lI in splitLogs) {
@@ -168,17 +172,34 @@ function drawGraph(logs /*string*/) {
             continue;
         }
 
-        regex = /Frag_C/;
+        regex = /Frag_C.*DamageInstigator=(BP_PlayerController_C_\d+) /;
         res = regex.exec(line);
         if (res) {
             fragPoints[ fragPoints.length - 1 ].y += 1;
+
+            if (!explosionCountersPerController[ res[ 1 ] ]) explosionCountersPerController[ res[ 1 ] ] = 0;
+            explosionCountersPerController[ res[ 1 ] ]++;
+
             continue;
         }
 
-        regex = /ServerMove\: TimeStamp expired/;
+        regex = /ServerMove\: TimeStamp expired.+Character: ([\w\d]+)/;
         res = regex.exec(line);
         if (res) {
             serverMovePoints[ serverMovePoints.length - 1 ].y += 0.05;
+
+            const playerName = pawnsToPlayerNames[ res[ 1 ] ];
+            if (!serverMoveTimestampExpiredPerPawn[ playerName ]) serverMoveTimestampExpiredPerPawn[ playerName ] = 0;
+            serverMoveTimestampExpiredPerPawn[ playerName ]++;
+
+            continue;
+        }
+
+        regex = /OnPossess\(\): PC=(.+) Pawn=(.+) FullPath/;
+        res = regex.exec(line);
+        if (res) {
+            pawnsToPlayerNames[ res[ 2 ] ] = res[ 1 ];
+
             continue;
         }
 
@@ -190,6 +211,32 @@ function drawGraph(logs /*string*/) {
         // }
         // res = null;
     }
+
+    console.log(`\n\x1b[1m\x1b[34m### STARTING CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+    const cheaters = {
+        Explosions: explosionCountersPerController,
+        ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn
+    }
+
+    for (let cK in cheaters) {
+        let minCount = 200;
+        switch (cK) {
+            case 'Explosions':
+                minCount = 100;
+                break;
+            case 'ServerMoveTimeStampExpired':
+                minCount = 2000;
+                break;
+        }
+
+        console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31m${cK.toUpperCase()}\x1b[0m`)
+        for (let playerId in cheaters[ cK ])
+            if (cheaters[ cK ][ playerId ] > minCount)
+                console.log(`\x1b[1m\x1b[34m#\x1b[0m  > ${playerId}: \x1b[33m${cheaters[ cK ][ playerId ]}\x1b[0m`)
+    }
+    console.log(`\x1b[1m\x1b[34m#### FINISHED CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+
+
     // chartPoints.forEach((v,i,
 
     const layerTextPlugin = {
@@ -319,7 +366,7 @@ function drawGraph(logs /*string*/) {
         }
     }
 
-    const chartCanvas = createCanvas(Math.max(Math.min(splitLogs.length / 120, 30000), 4000), 1800);
+    const chartCanvas = createCanvas(Math.max(Math.min(splitLogs.length / 120, 30000), 4000), 2000);
     Chart.defaults.font.size = 40;
 
     function tpsColorGradient(context) {
