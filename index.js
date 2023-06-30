@@ -55,6 +55,11 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
     let explosionCountersPerController = []
     let serverMoveTimestampExpiredPerPawn = []
     let pawnsToPlayerNames = []
+    let chainIdToPlayerController = []
+    let playerNameToPlayerController = []
+    let playerControllerToPlayerName = []
+    let playerControllerToSteamID = []
+    let killsPerPlayerController = []
 
     const splitLogs = logs.split('\n');
     for (let lI in splitLogs) {
@@ -119,12 +124,14 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         }
 
 
-        regex = /LogNet: Join succeeded/;
+        regex = /\[.+\]\[ ?(\d+)\]LogNet: Join succeeded: (.+)/;
         // regex = /LogNet: Client netspeed is/;
         res = regex.exec(line);
         // console.log(res);
         if (res) {
             playerPoints[ playerPoints.length - 1 ].y += 1;
+            playerNameToPlayerController[ res[ 2 ] ] = chainIdToPlayerController[ res[ 1 ] ];
+            playerControllerToPlayerName[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
             // queuePoints[ queuePoints.length - 1 ].y -= 1;
             // console.log(playerPoints[ playerPoints.length - 1 ].y)
             continue;
@@ -177,20 +184,22 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         if (res) {
             fragPoints[ fragPoints.length - 1 ].y += 1;
 
-            if (!explosionCountersPerController[ res[ 1 ] ]) explosionCountersPerController[ res[ 1 ] ] = 0;
-            explosionCountersPerController[ res[ 1 ] ]++;
+            const playerController = res[ 1 ];
+            if (!explosionCountersPerController[ playerController ]) explosionCountersPerController[ playerController ] = 0;
+            explosionCountersPerController[ playerController ]++;
 
             continue;
         }
 
-        regex = /ServerMove\: TimeStamp expired.+Character: ([\w\d]+)/;
+        regex = /ServerMove\: TimeStamp expired.+Character: (.+)/;
         res = regex.exec(line);
         if (res) {
             serverMovePoints[ serverMovePoints.length - 1 ].y += 0.05;
 
             const playerName = pawnsToPlayerNames[ res[ 1 ] ];
-            if (!serverMoveTimestampExpiredPerPawn[ playerName ]) serverMoveTimestampExpiredPerPawn[ playerName ] = 0;
-            serverMoveTimestampExpiredPerPawn[ playerName ]++;
+            const playerController = playerNameToPlayerController[ playerName ]
+            if (!serverMoveTimestampExpiredPerPawn[ playerController ]) serverMoveTimestampExpiredPerPawn[ playerController ] = 0;
+            serverMoveTimestampExpiredPerPawn[ playerController ]++;
 
             continue;
         }
@@ -199,7 +208,28 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         res = regex.exec(line);
         if (res) {
             pawnsToPlayerNames[ res[ 2 ] ] = res[ 1 ];
+            continue;
+        }
 
+        regex = /\[.+\]\[ ?(\d+)\]LogSquad: PostLogin: NewPlayer: BP_PlayerController_C.+PersistentLevel\.(.+)/;
+        res = regex.exec(line);
+        if (res) {
+            chainIdToPlayerController[ res[ 1 ] ] = res[ 2 ];
+            continue;
+        }
+
+        regex = /\[.+\]\[ ?(\d+)\]LogEOS: \[Category: LogEOSAntiCheat\] \[AntiCheatServer\] \[RegisterClient-001\].+AccountId: (\d+) IpAddress/;
+        res = regex.exec(line);
+        if (res) {
+            playerControllerToSteamID[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
+            continue;
+        }
+
+        regex = /Die\(\): Player:.+from (.+) caused/;
+        res = regex.exec(line);
+        if (res) {
+            if (!killsPerPlayerController[ res[ 1 ] ]) killsPerPlayerController[ res[ 1 ] ] = 0;
+            killsPerPlayerController[ res[ 1 ] ]++;
             continue;
         }
 
@@ -215,7 +245,8 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
     console.log(`\n\x1b[1m\x1b[34m### STARTING CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
     const cheaters = {
         Explosions: explosionCountersPerController,
-        ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn
+        ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn,
+        Kills: killsPerPlayerController
     }
 
     for (let cK in cheaters) {
@@ -225,14 +256,26 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
                 minCount = 200;
                 break;
             case 'ServerMoveTimeStampExpired':
-                minCount = 2000;
+                minCount = 5000;
+                break;
+            case 'Kills':
+                minCount = 100;
                 break;
         }
 
         console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31m${cK.toUpperCase()}\x1b[0m`)
         for (let playerId in cheaters[ cK ])
-            if (cheaters[ cK ][ playerId ] > minCount)
-                console.log(`\x1b[1m\x1b[34m#\x1b[0m  > ${playerId}: \x1b[33m${cheaters[ cK ][ playerId ]}\x1b[0m`)
+            if (cheaters[ cK ][ playerId ] > minCount) {
+                let playerName;
+                let playerSteamID;
+                let playerController;
+
+                playerController = playerId
+                playerName = playerControllerToPlayerName[ playerController ];
+                playerSteamID = playerControllerToSteamID[ playerController ]
+
+                console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
+            }
     }
     console.log(`\x1b[1m\x1b[34m#### FINISHED CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
 
