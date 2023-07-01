@@ -225,11 +225,16 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             continue;
         }
 
-        regex = /Die\(\): Player:.+from (.+) caused/;
+        regex = /Die\(\): Player:.+from (.+) caused by (.+)/;
         res = regex.exec(line);
         if (res) {
-            if (!killsPerPlayerController[ res[ 1 ] ]) killsPerPlayerController[ res[ 1 ] ] = 0;
-            killsPerPlayerController[ res[ 1 ] ]++;
+            let playerController = res[ 1 ]
+            if (!playerController || playerController == 'nullptr') {
+                playerController = playerNameToPlayerController[ pawnsToPlayerNames[ res[ 2 ] ] ]
+                // console.log(line)
+            }
+            if (!killsPerPlayerController[ playerController ]) killsPerPlayerController[ playerController ] = 0;
+            killsPerPlayerController[ playerController ]++;
             continue;
         }
 
