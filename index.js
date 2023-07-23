@@ -11,8 +11,14 @@ async function main() {
     const files = fs.readdirSync(INPUT_DIR).filter(f => f.endsWith('.log'));
     console.log(`Logs found (${files.length}):\n > ${files.join(`\n > `)}`);
 
-    if (!fs.existsSync(INPUT_DIR)) fs.mkdirSync(INPUT_DIR)
-    if (!fs.existsSync(OUPUT_DIR)) fs.mkdirSync(OUPUT_DIR)
+    if (!fs.existsSync(INPUT_DIR)) {
+        fs.mkdirSync(INPUT_DIR)
+        fs.writeFileSync(path.join(OUPUT_DIR, '.gitkeep'), '')
+    }
+    if (!fs.existsSync(OUPUT_DIR)) {
+        fs.mkdirSync(OUPUT_DIR)
+        fs.writeFileSync(path.join(OUPUT_DIR, '.gitkeep'), '')
+    }
 
     for (let logFile of files) {
         const logPath = path.join(INPUT_DIR, logFile);
@@ -105,7 +111,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         res = regex.exec(line);
         if (res) {
             serverName = res[ 1 ];
-            // continue;
+            // // continue;
         }
 
         regex = /NotifyAcceptingChannel/
@@ -113,18 +119,19 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         if (res) {
             queuePoints[ queuePoints.length - 1 ].y += 1;
             if (queuePoints[ queuePoints.length - 1 ].y > maxQueue) maxQueue = queuePoints[ queuePoints.length - 1 ].y;
-            continue;
+            // continue;
         }
 
         regex = /CloseBunch/
         res = regex.exec(line);
         if (res) {
             queuePoints[ queuePoints.length - 1 ].y -= 1;
-            // continue;
+            // // continue;
         }
 
 
-        regex = /\[.+\]\[ ?(\d+)\]LogNet: Join succeeded: (.+)/;
+        // regex = /\[.+\]\[ ?(\d+)\]LogNet: Join succeeded: (.+)/;
+        regex = /LogSquad: PostLogin: NewPlayer: BP_PlayerController_C/;
         // regex = /LogNet: Client netspeed is/;
         res = regex.exec(line);
         // console.log(res);
@@ -134,17 +141,18 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             playerControllerToPlayerName[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
             // queuePoints[ queuePoints.length - 1 ].y -= 1;
             // console.log(playerPoints[ playerPoints.length - 1 ].y)
-            continue;
+            // continue;
         }
 
         // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: .+, Driver: GameNetDriver .+, IsServer: YES, PC: (.+), Owner: .+/;
         // regex = /LogOnline: STEAM: \d+ has been removed/;
-        regex = /LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == \d\. Name: \[UChannel\] ChIndex: \d, Closing: \d \[UNetConnection\] RemoteAddr: \d+\:\d+, Name: .+, Driver: .+, IsServer: YES, PC:.+Player.+/;
+        regex = /LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == \d\. Name: \[UChannel\] ChIndex: \d, Closing: \d \[UNetConnection\] RemoteAddr: \d+\:\d+, Name: SteamNetConnection.+, Driver: GameNetDriver.+, IsServer: YES, PC: BP_PlayerController_C_.+, Owner: BP_PlayerController_C_.+, UniqueId: Steam:UNKNOWN \[.+\]/;
+        // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: .+, Driver: .+, IsServer: YES/;
         res = regex.exec(line);
         if (res) {
             playerPoints[ playerPoints.length - 1 ].y -= 1;
             // queuePoints[ queuePoints.length - 1 ].y -= 1;
-            continue;
+            // continue;
         }
 
         regex = /LogOnlineGame: Display: Kicking player: .+ ; Reason = Host closed the connection/;
@@ -152,7 +160,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         if (res) {
             hostClosedConnectionPoints[ hostClosedConnectionPoints.length - 1 ].y += 3;
             // queuePoints[ queuePoints.length - 1 ].y -= 1;
-            continue;
+            // continue;
         }
 
         regex = /\[(.+)\].+LogSquad: OnPreLoadMap: Loading map .+\/([^\/]+)$/;
@@ -164,7 +172,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
                 label: res[ 2 ]
             })
             // layers[ layers.length - 1 ].y += 3;
-            continue;
+            // continue;
         }
 
         regex = /\[(.+)\].+LogWorld: SeamlessTravel to: .+\/([^\/]+)$/;
@@ -176,7 +184,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
                 label: res[ 2 ]
             })
             // layers[ layers.length - 1 ].y += 3;
-            continue;
+            // continue;
         }
 
         regex = /Frag_C.*DamageInstigator=(BP_PlayerController_C_\d+) /;
@@ -188,7 +196,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             if (!explosionCountersPerController[ playerController ]) explosionCountersPerController[ playerController ] = 0;
             explosionCountersPerController[ playerController ]++;
 
-            continue;
+            // continue;
         }
 
         regex = /ServerMove\: TimeStamp expired.+Character: (.+)/;
@@ -201,28 +209,28 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             if (!serverMoveTimestampExpiredPerPawn[ playerController ]) serverMoveTimestampExpiredPerPawn[ playerController ] = 0;
             serverMoveTimestampExpiredPerPawn[ playerController ]++;
 
-            continue;
+            // continue;
         }
 
         regex = /OnPossess\(\): PC=(.+) Pawn=(.+) FullPath/;
         res = regex.exec(line);
         if (res) {
             pawnsToPlayerNames[ res[ 2 ] ] = res[ 1 ];
-            continue;
+            // continue;
         }
 
         regex = /\[.+\]\[ ?(\d+)\]LogSquad: PostLogin: NewPlayer: BP_PlayerController_C.+PersistentLevel\.(.+)/;
         res = regex.exec(line);
         if (res) {
             chainIdToPlayerController[ res[ 1 ] ] = res[ 2 ];
-            continue;
+            // continue;
         }
 
         regex = /\[.+\]\[ ?(\d+)\]LogEOS: \[Category: LogEOSAntiCheat\] \[AntiCheatServer\] \[RegisterClient-001\].+AccountId: (\d+) IpAddress/;
         res = regex.exec(line);
         if (res) {
             playerControllerToSteamID[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
-            continue;
+            // continue;
         }
 
         regex = /Die\(\): Player:.+from (.+) caused by (.+)/;
@@ -235,7 +243,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             }
             if (!killsPerPlayerController[ playerController ]) killsPerPlayerController[ playerController ] = 0;
             killsPerPlayerController[ playerController ]++;
-            continue;
+            // continue;
         }
 
         // regex = /LogOnlineGame: Display: Kicking player: .+ ; Reason = Host closed the connection/;
