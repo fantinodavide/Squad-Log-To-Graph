@@ -125,7 +125,11 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         // regex = /(NotifyAcceptingChannel)|(LogEOSNetworkAuth: Verbose: .+: connection: All phases finished successfully)/
         // regex = /NotifyAcceptingConnection accepted from/
         // regex = /LogNet: Server accepting post-challenge connection from/
-        regex = /LogNet: AddClientConnection: Added client connection: \[UNetConnection\] RemoteAddr/
+        // regex = /LogNet: AddClientConnection: Added client connection: \[UNetConnection\] RemoteAddr/
+        regex = /NotifyAcceptingChannel/;
+        // regex = /LogEOSNetworkAuth: Verbose: .+: connection: All phases finished successfully/
+        // regex = /LogBeacon: Beacon Hello/
+        // regex = /LogNet: NotifyAcceptingChannel Control .+ server OnlineBeaconHost/
         res = regex.exec(line);
         if (res) {
             queuePoints[ queuePoints.length - 1 ].y += 1;
@@ -135,7 +139,8 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
 
         // [2023.09.16-20.39.02:988][879]LogNet: UNetConnection::Close: [UNetConnection] RemoteAddr: 94.33.215.163:54270, Name: EOSIpNetConnection_2147163289, Driver: EOSNetDriver_2147171121 EOSNetDriver_2147171121, IsServer: YES, PC: NULL, Owner: SQJoinBeaconClient_2147163284, UniqueId: RedpointEOS:0002a9b6e5ca4343beb7578f8d8ac823, Channels: 3, Time: 2023.09.16-20.39.02
         regex = /CloseBunch/
-        // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: EOSIpNetConnection.+, Driver: EOSNetDriver.+ EOSNetDriver.+, IsServer: YES, PC: NULL, Owner: SQJoinBeaconClient.+, UniqueId: RedpointEOS/
+        // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: EOSIpNetConnection.+, Driver: EOSNetDriver.+ EOSNetDriver.+, IsServer: YES, PC: .+, Owner: SQJoinBeaconClient.+, UniqueId: RedpointEOS/
+        // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr:/
         res = regex.exec(line);
         if (res) {
             queuePoints[ queuePoints.length - 1 ].y -= 1;
