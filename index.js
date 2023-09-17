@@ -122,7 +122,10 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             // // continue;
         }
 
-        regex = /NotifyAcceptingChannel/
+        // regex = /(NotifyAcceptingChannel)|(LogEOSNetworkAuth: Verbose: .+: connection: All phases finished successfully)/
+        // regex = /NotifyAcceptingConnection accepted from/
+        // regex = /LogNet: Server accepting post-challenge connection from/
+        regex = /LogNet: AddClientConnection: Added client connection: \[UNetConnection\] RemoteAddr/
         res = regex.exec(line);
         if (res) {
             queuePoints[ queuePoints.length - 1 ].y += 1;
@@ -130,14 +133,16 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             // continue;
         }
 
+        // [2023.09.16-20.39.02:988][879]LogNet: UNetConnection::Close: [UNetConnection] RemoteAddr: 94.33.215.163:54270, Name: EOSIpNetConnection_2147163289, Driver: EOSNetDriver_2147171121 EOSNetDriver_2147171121, IsServer: YES, PC: NULL, Owner: SQJoinBeaconClient_2147163284, UniqueId: RedpointEOS:0002a9b6e5ca4343beb7578f8d8ac823, Channels: 3, Time: 2023.09.16-20.39.02
         regex = /CloseBunch/
+        // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: EOSIpNetConnection.+, Driver: EOSNetDriver.+ EOSNetDriver.+, IsServer: YES, PC: NULL, Owner: SQJoinBeaconClient.+, UniqueId: RedpointEOS/
         res = regex.exec(line);
         if (res) {
             queuePoints[ queuePoints.length - 1 ].y -= 1;
             // // continue;
         }
 
-
+        // regex = /LogEOSNetworkAuth: Verbose: .+: login: All phases finished successfully/;
         // regex = /\[.+\]\[ ?(\d+)\]LogNet: Join succeeded: (.+)/;
         regex = /LogSquad: PostLogin: NewPlayer: [^ ]+PlayerController_C/;
         // regex = /LogNet: Client netspeed is/;
@@ -154,7 +159,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
 
         // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: .+, Driver: GameNetDriver .+, IsServer: YES, PC: (.+), Owner: .+/;
         // regex = /LogOnline: STEAM: \d+ has been removed/;
-        regex = /LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == \d\. Name: \[UChannel\] ChIndex: \d, Closing: \d \[UNetConnection\] RemoteAddr: \d+\:\d+, Name: SteamNetConnection.+, Driver: GameNetDriver.+, IsServer: YES, PC: [^ ]+PlayerController_C_.+, Owner: [^ ]+PlayerController_C_.+, UniqueId: Steam:UNKNOWN \[.+\]/;
+        regex = /LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == \d\. Name: \[UChannel\] ChIndex: \d[,\.] Closing: \d \[UNetConnection\] RemoteAddr: .+\:\d+, Name: ((SteamNetConnection)|(EOSIpNetConnection)).+, Driver: ((GameNetDriver)|(EOSNetDriver)).+, IsServer: YES, PC: [^ ]+PlayerController_C.+, Owner: .+, UniqueId: ((Steam)|(RedpointEOS)):[\w\d]+/;
         // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: .+, Driver: .+, IsServer: YES/;
         res = regex.exec(line);
         if (res) {
