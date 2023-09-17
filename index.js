@@ -34,6 +34,7 @@ async function main() {
 
 function drawGraph(logs /*string*/, fileNameNoExt) {
     let serverName = '';
+    let serverVersion = '';
     let chartPoints = [];
     let queuePoints = [ {
         x: 0,
@@ -114,6 +115,13 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             // // continue;
         }
 
+        regex = /LogNetVersion: Set ProjectVersion to (V.+)\. Version/
+        res = regex.exec(line);
+        if (res) {
+            serverVersion = res[ 1 ];
+            // // continue;
+        }
+
         regex = /NotifyAcceptingChannel/
         res = regex.exec(line);
         if (res) {
@@ -131,7 +139,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
 
 
         // regex = /\[.+\]\[ ?(\d+)\]LogNet: Join succeeded: (.+)/;
-        regex = /LogSquad: PostLogin: NewPlayer: BP_PlayerController_C/;
+        regex = /LogSquad: PostLogin: NewPlayer: [^ ]+PlayerController_C/;
         // regex = /LogNet: Client netspeed is/;
         res = regex.exec(line);
         // console.log(res);
@@ -146,7 +154,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
 
         // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: .+, Driver: GameNetDriver .+, IsServer: YES, PC: (.+), Owner: .+/;
         // regex = /LogOnline: STEAM: \d+ has been removed/;
-        regex = /LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == \d\. Name: \[UChannel\] ChIndex: \d, Closing: \d \[UNetConnection\] RemoteAddr: \d+\:\d+, Name: SteamNetConnection.+, Driver: GameNetDriver.+, IsServer: YES, PC: BP_PlayerController_C_.+, Owner: BP_PlayerController_C_.+, UniqueId: Steam:UNKNOWN \[.+\]/;
+        regex = /LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == \d\. Name: \[UChannel\] ChIndex: \d, Closing: \d \[UNetConnection\] RemoteAddr: \d+\:\d+, Name: SteamNetConnection.+, Driver: GameNetDriver.+, IsServer: YES, PC: [^ ]+PlayerController_C_.+, Owner: [^ ]+PlayerController_C_.+, UniqueId: Steam:UNKNOWN \[.+\]/;
         // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: .+, Driver: .+, IsServer: YES/;
         res = regex.exec(line);
         if (res) {
@@ -179,7 +187,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         res = regex.exec(line);
         if (res) {
             layers.push({
-                x: chartPoints[ chartPoints.length - 1 ].x,
+                x: chartPoints[ chartPoints.length - 1 ]?.x,
                 y: 150,
                 label: res[ 2 ]
             })
@@ -295,6 +303,9 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
 
     // chartPoints.forEach((v,i,
 
+    let canvasWidth = Math.max(Math.min(splitLogs.length / 120, 30000), 4000);
+    let canvasHeight = 2000;
+
     const layerTextPlugin = {
         id: 'layerText',
         afterDatasetDraw(chart, args, pluginOptions) {
@@ -330,6 +341,25 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
                 ctx.save();
                 ctx.translate(200, 80);
                 ctx.fillText(serverName, 0, 0)
+                ctx.restore();
+            })
+        }
+    }
+    const serverVersionPlugin = {
+        id: 'layerText',
+        afterDatasetDraw(chart, args, pluginOptions) {
+            // console.log(args.meta.dataset.label)
+            const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
+            const { chartArea } = chart;
+            if (args.index != 3) return;
+
+            const chartMaxY = chart.scales.y.max;
+            data.datasets[ args.index ].data.forEach((dataPoint, index) => {
+                ctx.font = 'bolder 50px sans-serif';
+                ctx.fillStyle = "#999999";
+                ctx.save();
+                ctx.translate(50, canvasHeight - 60);
+                ctx.fillText(serverVersion, 0, 0)
                 ctx.restore();
             })
         }
@@ -421,8 +451,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             ctx.restore();
         }
     }
-
-    const chartCanvas = createCanvas(Math.max(Math.min(splitLogs.length / 120, 30000), 4000), 2000);
+    const chartCanvas = createCanvas(canvasWidth, canvasHeight);
     Chart.defaults.font.size = 40;
 
     function tpsColorGradient(context) {
@@ -564,7 +593,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
                     left: 200,
                     right: 50,
                     top: 150,
-                    bottom: 50
+                    bottom: 100
                 }
             },
             scales: {
@@ -605,7 +634,8 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             chartBackground,
             layerTextPlugin,
             // tpsColorPlugin,
-            serverNamePlugin
+            serverNamePlugin,
+            serverVersionPlugin
         ]
 
 
