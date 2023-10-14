@@ -35,6 +35,7 @@ async function main() {
 function drawGraph(logs /*string*/, fileNameNoExt) {
     let serverName = '';
     let serverVersion = '';
+    let serverCPU = '';
     let chartPoints = [];
     let queuePoints = [ {
         x: 0,
@@ -53,6 +54,14 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         y: 0
     } ];
     let fragPoints = [ {
+        x: 0,
+        y: 0
+    } ];
+    let queueDisconnectionPoints = [ {
+        x: 0,
+        y: 0
+    } ];
+    let clientNetSpeed = [ {
         x: 0,
         y: 0
     } ];
@@ -103,6 +112,11 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
                 x: obj.x,
                 y: 0
             })
+            queueDisconnectionPoints.push({
+                x: obj.x,
+                y: 0
+            })
+
 
             // console.log('TPS', obj);
             continue;
@@ -113,6 +127,12 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         if (res) {
             serverName = res[ 1 ];
             // // continue;
+        }
+
+        regex = /LogInit: OS: .+, CPU: (.+), GPU:/
+        res = regex.exec(line);
+        if (res) {
+            serverCPU = res[ 1 ];
         }
 
         regex = /LogNetVersion: Set ProjectVersion to (V.+)\. Version/
@@ -135,6 +155,11 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             queuePoints[ queuePoints.length - 1 ].y += 1;
             if (queuePoints[ queuePoints.length - 1 ].y > maxQueue) maxQueue = queuePoints[ queuePoints.length - 1 ].y;
             // continue;
+        }
+        regex = /AUTH HANDLER: Sending auth result to user .+ with flag success\? 0/;
+        res = regex.exec(line);
+        if (res) {
+            queueDisconnectionPoints[ queueDisconnectionPoints.length - 1 ].y += 3;
         }
 
         // [2023.09.16-20.39.02:988][879]LogNet: UNetConnection::Close: [UNetConnection] RemoteAddr: 94.33.215.163:54270, Name: EOSIpNetConnection_2147163289, Driver: EOSNetDriver_2147171121 EOSNetDriver_2147171121, IsServer: YES, PC: NULL, Owner: SQJoinBeaconClient_2147163284, UniqueId: RedpointEOS:0002a9b6e5ca4343beb7578f8d8ac823, Channels: 3, Time: 2023.09.16-20.39.02
@@ -230,6 +255,16 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             // continue;
         }
 
+        regex = /Client netspeed is (\d+)/;
+        res = regex.exec(line);
+        if (res) {
+            clientNetSpeed.push({
+                x: chartPoints[ chartPoints.length - 1 ]?.x,
+                y: (+res[ 1 ]) / 1000,
+                label: res[ 2 ]
+            })
+        }
+
         regex = /OnPossess\(\): PC=(.+) Pawn=(.+) FullPath/;
         res = regex.exec(line);
         if (res) {
@@ -322,7 +357,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             // console.log(args.meta.dataset.label)
             const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
             const { chartArea } = chart;
-            if (args.index != 4) return;
+            if (args.index != 5) return;
 
             const chartMaxY = chart.scales.y.max;
             data.datasets[ args.index ].data.forEach((dataPoint, index) => {
@@ -370,6 +405,25 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
                 ctx.save();
                 ctx.translate(50, canvasHeight - 60);
                 ctx.fillText(serverVersion, 0, 0)
+                ctx.restore();
+            })
+        }
+    }
+    const serverCPUPlugin = {
+        id: 'layerText',
+        afterDatasetDraw(chart, args, pluginOptions) {
+            // console.log(args.meta.dataset.label)
+            const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
+            const { chartArea } = chart;
+            if (args.index != 3) return;
+
+            const chartMaxY = chart.scales.y.max;
+            data.datasets[ args.index ].data.forEach((dataPoint, index) => {
+                ctx.font = 'bolder 50px sans-serif';
+                ctx.fillStyle = "#999999";
+                ctx.save();
+                ctx.translate(550, canvasHeight - 60);
+                ctx.fillText(serverCPU, 0, 0)
                 ctx.restore();
             })
         }
@@ -559,8 +613,16 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
                     pointRadius: 0,
                     label: 'HostClosedConnection*3',
                     data: hostClosedConnectionPoints,
-                    backgroundColor: "#FFAA66",
-                    borderColor: "#FF8822",
+                    backgroundColor: "#d87402",
+                    borderColor: "#d87402",
+                },
+                {
+                    pointStyle: 'circle',
+                    pointRadius: 0,
+                    label: 'Failed Queue Connections',
+                    data: queueDisconnectionPoints,
+                    backgroundColor: "#b5ac4f",
+                    borderColor: "#b5ac4f",
                 },
                 {
                     type: 'bar',
@@ -591,6 +653,14 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
                     data: serverMovePoints,
                     backgroundColor: "#8888FF",
                     borderColor: "#8888FF",
+                },
+                {
+                    pointStyle: 'circle',
+                    pointRadius: 0,
+                    label: 'ClientNetSpeed/1000',
+                    data: clientNetSpeed,
+                    backgroundColor: "#397060",
+                    borderColor: "#397060",
                 },
             ]
         },
@@ -645,7 +715,8 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             layerTextPlugin,
             // tpsColorPlugin,
             serverNamePlugin,
-            serverVersionPlugin
+            serverVersionPlugin,
+            serverCPUPlugin
         ]
 
 
