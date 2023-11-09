@@ -61,6 +61,10 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         x: 0,
         y: 0
     } ];
+    let steamEmptyTicket = [ {
+        x: 0,
+        y: 0
+    } ];
     let clientNetSpeed = [ {
         x: 0,
         y: 0
@@ -116,6 +120,10 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
                 x: obj.x,
                 y: 0
             })
+            steamEmptyTicket.push({
+                x: obj.x,
+                y: 0
+            })
 
 
             // console.log('TPS', obj);
@@ -161,6 +169,11 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         if (res) {
             queueDisconnectionPoints[ queueDisconnectionPoints.length - 1 ].y += 3;
         }
+        regex = /LogOnline: Warning: STEAM: AUTH: Ticket from user .+ is empty/;
+        res = regex.exec(line);
+        if (res) {
+            steamEmptyTicket[ steamEmptyTicket.length - 1 ].y += 1;
+        }
 
         // [2023.09.16-20.39.02:988][879]LogNet: UNetConnection::Close: [UNetConnection] RemoteAddr: 94.33.215.163:54270, Name: EOSIpNetConnection_2147163289, Driver: EOSNetDriver_2147171121 EOSNetDriver_2147171121, IsServer: YES, PC: NULL, Owner: SQJoinBeaconClient_2147163284, UniqueId: RedpointEOS:0002a9b6e5ca4343beb7578f8d8ac823, Channels: 3, Time: 2023.09.16-20.39.02
         regex = /CloseBunch/
@@ -187,10 +200,8 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
             // continue;
         }
 
-        // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: .+, Driver: GameNetDriver .+, IsServer: YES, PC: (.+), Owner: .+/;
-        // regex = /LogOnline: STEAM: \d+ has been removed/;
-        regex = /LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == \d\. Name: \[UChannel\] ChIndex: \d[,\.] Closing: \d \[UNetConnection\] RemoteAddr: .+\:\d+, Name: ((SteamNetConnection)|(EOSIpNetConnection)).+, Driver: ((GameNetDriver)|(EOSNetDriver)).+, IsServer: YES, PC: [^ ]+PlayerController_C.+, Owner: .+, UniqueId: ((Steam)|(RedpointEOS)):[\w\d]+/;
-        // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: .+, Driver: .+, IsServer: YES/;
+        // regex = /LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == \d\. Name: \[UChannel\] ChIndex: \d[,\.] Closing: \d \[UNetConnection\] RemoteAddr: .+\:\d+, Name: ((SteamNetConnection)|(EOSIpNetConnection)).+, Driver: ((GameNetDriver)|(EOSNetDriver)).+, IsServer: YES, PC: [^ ]+PlayerController_C.+, Owner: .+, UniqueId: ((Steam)|(RedpointEOS)):[\w\d]+/;
+        regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == [0-9]+\. Name: \[UChannel\] ChIndex: [0-9]+, Closing: [0-9]+ \[UNetConnection\] RemoteAddr: (.+):[0-9]+, Name: (Steam|EOSIp)NetConnection_[0-9]+, Driver: GameNetDriver (Steam|EOS)NetDriver_[0-9]+, IsServer: YES, PC: ([^ ]+PlayerController_C_[0-9]+), Owner: [^ ]+PlayerController_C_[0-9]+/
         res = regex.exec(line);
         if (res) {
             playerPoints[ playerPoints.length - 1 ].y -= 1;
@@ -308,7 +319,11 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
         // res = null;
     }
 
-    console.log(`\n\x1b[1m\x1b[34m### STARTING CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+    console.log(`\n\x1b[1m\x1b[34m### SERVER STAT REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+    console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mHost Closed Connections:\x1b[0m ${hostClosedConnectionPoints.map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
+    console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${queueDisconnectionPoints.map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
+    console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${steamEmptyTicket.map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
+    console.log(`\x1b[1m\x1b[34m### STARTING CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
     const cheaters = {
         Explosions: explosionCountersPerController,
         ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn,
@@ -343,7 +358,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
                 console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
             }
     }
-    console.log(`\x1b[1m\x1b[34m#### FINISHED CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+    console.log(`\x1b[1m\x1b[34m#### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
 
 
     // chartPoints.forEach((v,i,
