@@ -72,6 +72,8 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
     let maxQueue = 0;
     let layers = []
 
+    let uniqueClientNetSpeedValues = new Set();
+
     let explosionCountersPerController = []
     let serverMoveTimestampExpiredPerPawn = []
     let pawnsToPlayerNames = []
@@ -274,6 +276,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
                 y: (+res[ 1 ]) / 1000,
                 label: res[ 2 ]
             })
+            uniqueClientNetSpeedValues.add(+res[ 1 ]);
         }
 
         regex = /OnPossess\(\): PC=(.+) Pawn=(.+) FullPath/;
@@ -323,6 +326,7 @@ function drawGraph(logs /*string*/, fileNameNoExt) {
     console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mHost Closed Connections:\x1b[0m ${hostClosedConnectionPoints.map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
     console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${queueDisconnectionPoints.map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
     console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${steamEmptyTicket.map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
+    console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mUnique Client NetSpeed Values:\x1b[0m ${[...uniqueClientNetSpeedValues.values()].join('; ')}`)
     console.log(`\x1b[1m\x1b[34m### STARTING CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
     const cheaters = {
         Explosions: explosionCountersPerController,
