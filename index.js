@@ -77,7 +77,7 @@ function drawGraph(logPath /*string*/, fileNameNoExt) {
             totalLines++;
             let regex, res;
 
-            regex = /\[(.+)\]\[\d+]LogSquad: .+: Server Tick Rate: (\d+.?\d+)/;
+            regex = /\[(.+)\]\[\d+\]LogSquad: .+: Server Tick Rate: (\d+.?\d+)/;
             res = regex.exec(line);
             if (res) {
                 const timePoint = getDateTime(res[ 1 ]).toLocaleString();
@@ -158,10 +158,11 @@ function drawGraph(logPath /*string*/, fileNameNoExt) {
             regex = /\[(.+)\].+LogSquad: OnPreLoadMap: Loading map .+\/([^\/]+)$/;
             res = regex.exec(line);
             if (res) {
-                data.setNewCounterValue('layers', 150, res[ 2 ])
+                const timePoint = getDateTime(res[ 1 ]).toLocaleString();
+                data.setNewCounterValue('layers', 150, res[ 2 ], timePoint)
             }
 
-            regex = /\[(.+)\].+LogWorld: SeamlessTravel to: .+\/([^\/]+)$/;
+            regex = /\[(.+)\]\[\d+].*LogWorld: SeamlessTravel to: .+\/([^\/]+)$/;
             res = regex.exec(line);
             if (res) {
                 data.setNewCounterValue('layers', 150, res[ 2 ])
