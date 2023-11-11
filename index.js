@@ -1,4 +1,3 @@
-// import { Chart, controllers, registerables } from "chart.js";
 import Chart from 'chart.js/auto';
 import { createCanvas, loadImage } from 'canvas';
 import fs from 'fs';
