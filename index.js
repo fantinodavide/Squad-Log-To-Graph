@@ -221,7 +221,11 @@ function drawGraph(logPath, fileNameNoExt) {
         })
 
         rl.on("close", () => {
+            const serverUptimeMs = (+data.timePoints[ data.timePoints.length - 1 ].time - +data.timePoints[ 0 ].time)
+            const serverUptimeHours = (serverUptimeMs / 1000 / 60 / 60).toFixed(1);
+
             console.log(`\n\x1b[1m\x1b[34m### SERVER STAT REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Uptime:\x1b[0m ${serverUptimeHours} h`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mHost Closed Connections:\x1b[0m ${data.getCounterData('hostClosedConnection').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${data.getCounterData('queueDisconnections').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${data.getCounterData('steamEmptyTicket').map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
@@ -263,7 +267,7 @@ function drawGraph(logPath, fileNameNoExt) {
             }
             console.log(`\x1b[1m\x1b[34m#### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
 
-            let canvasWidth = Math.max(Math.min(totalLines / 120, 30000), 4000);
+            let canvasWidth = Math.max(Math.min(serverUptimeMs / 15000, 30000), 4000);
             let canvasHeight = 2000;
 
             const chartCanvas = createCanvas(canvasWidth, canvasHeight);
