@@ -15,8 +15,21 @@ export default class DataStore {
         counter[ counter.length - 1 ].y += incrementer;
     }
 
+    incrementFrequencyCounter(key, incrementer) {
+        const RESET_FREQUENCY_SECONDS = 5;
+
+        const timeNow = this.getLastTimePoint();
+        const counter = this.counters.get(key);
+        if (!counter || +timeNow.time - +counter[ counter.length - 1 ].time > RESET_FREQUENCY_SECONDS * 1000) {
+            if (counter?.length > 0)
+                this.setNewCounterValue(key, 0, undefined, counter[ counter.length - 1 ].time)
+            this.setNewCounterValue(key, 0)
+        }
+        this.incrementCounter(key, incrementer)
+    }
+
     setNewCounterValue(key, value, label, time = null) {
-        if (time) this.addTimePoint(time);
+        if (time && +time > 0) time = this.addTimePoint(time);
         else time = this.getLastTimePoint();
 
         const oldCounter = this.counters.get(key);
@@ -24,13 +37,15 @@ export default class DataStore {
             this.counters.set(key, []);
         const newObj = {
             y: value,
-            x: time,
+            x: time.formatted,
+            time: time.time,
             label: label
         }
         if (oldCounter) {
             const oldObjDuplication = {
                 y: oldCounter[ oldCounter.length - 1 ].y,
-                x: time,
+                x: time.formatted,
+                time: time.time,
                 label: label
             }
             this.counters.get(key).push(oldObjDuplication)
@@ -40,8 +55,13 @@ export default class DataStore {
     }
 
     addTimePoint(time) {
-        if (this.timePoints.indexOf(time) < 0)
-            this.timePoints.push(time);
+        const obj = {
+            time: time,
+            formatted: time.toLocaleString()
+        }
+        if (!this.timePoints.find(t => +t.time == +obj.time))
+            this.timePoints.push(obj);
+        return obj;
     }
 
     getLastTimePoint() {
@@ -49,11 +69,11 @@ export default class DataStore {
     }
 
     getTimePoints() {
-        return this.timePoints;
+        return this.timePoints.map(p => p.formatted);
     }
 
     getCounterData(key) {
-        return this.counters.get(key);
+        return this.counters.get(key) || [];
     }
 
     getCounterLastValue(key) {
