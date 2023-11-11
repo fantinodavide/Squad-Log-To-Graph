@@ -44,7 +44,7 @@ async function main() {
     await Promise.all(filesToAnalyze);
 }
 
-function drawGraph(logPath /*string*/, fileNameNoExt) {
+function drawGraph(logPath, fileNameNoExt) {
     return new Promise((resolve, reject) => {
         const data = new DataStore();
 
