@@ -19,19 +19,27 @@ export default class DataStore {
         if (time) this.addTimePoint(time);
         else time = this.getLastTimePoint();
 
-        if (!this.counters.get(key))
+        const oldCounter = this.counters.get(key);
+        if (!oldCounter)
             this.counters.set(key, []);
-        const obj = {
+        const newObj = {
             y: value,
             x: time,
             label: label
         }
-        this.counters.get(key).push(obj)
-        return obj;
+        if (oldCounter) {
+            const oldObjDuplication = {
+                y: oldCounter[ oldCounter.length - 1 ].y,
+                x: time,
+                label: label
+            }
+            this.counters.get(key).push(oldObjDuplication)
+        }
+        this.counters.get(key).push(newObj)
+        return newObj;
     }
 
     addTimePoint(time) {
-        // time.setMilliseconds(0)
         if (this.timePoints.indexOf(time) < 0)
             this.timePoints.push(time);
     }
