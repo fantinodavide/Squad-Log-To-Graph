@@ -3,6 +3,17 @@ import Chart from 'chart.js/auto';
 import { createCanvas, loadImage } from 'canvas';
 import fs from 'fs';
 import path from 'path';
+import 'dotenv/config'
+import readline from 'readline';
+
+import serverNamePlugin from './chart-plugins/server-name.js';
+import chartBackgroundPlugin from './chart-plugins/chart-background.js';
+import layerTextPlugin from './chart-plugins/layer-text.js';
+import serverVersionPlugin from './chart-plugins/server-version.js';
+import serverCPUPlugin from './chart-plugins/server-cpu.js';
+
+import tpsColorGradient from './chart-functions/tps-color-gradient.js';
+import tpsColorGradientBackground from './chart-functions/tps-color-gradient-background.js';
 
 const INPUT_DIR = 'input-logs';
 const OUPUT_DIR = 'output-graphs';
@@ -20,728 +31,450 @@ async function main() {
         fs.writeFileSync(path.join(OUPUT_DIR, '.gitkeep'), '')
     }
 
-    for (let logFile of files) {
+    const filesToAnalyze = files.map(async (logFile) => {
         const logPath = path.join(INPUT_DIR, logFile);
         const fileNameNoExt = logFile.replace(/\.[^\.]+$/, '');
         const outputPath = path.join(OUPUT_DIR, `${fileNameNoExt}.png`)
 
-        const logs = fs.readFileSync(logPath).toString();
-        const graph = drawGraph(logs, fileNameNoExt)
+        const graph = await drawGraph(logPath, fileNameNoExt)
 
         fs.writeFileSync(outputPath, graph.toBuffer("image/png"))
-    }
+    })
+
+    await Promise.all(filesToAnalyze);
 }
 
-function drawGraph(logs /*string*/, fileNameNoExt) {
-    let serverName = '';
-    let serverVersion = '';
-    let serverCPU = '';
-    let chartPoints = [];
-    let queuePoints = [ {
-        x: 0,
-        y: 0
-    } ];
-    let playerPoints = [ {
-        x: 0,
-        y: 0
-    } ];
-    let hostClosedConnectionPoints = [ {
-        x: 0,
-        y: 0
-    } ];
-    let serverMovePoints = [ {
-        x: 0,
-        y: 0
-    } ];
-    let fragPoints = [ {
-        x: 0,
-        y: 0
-    } ];
-    let queueDisconnectionPoints = [ {
-        x: 0,
-        y: 0
-    } ];
-    let steamEmptyTicket = [ {
-        x: 0,
-        y: 0
-    } ];
-    let clientNetSpeed = [ {
-        x: 0,
-        y: 0
-    } ];
-    let maxQueue = 0;
-    let layers = []
-
-    let uniqueClientNetSpeedValues = new Set();
-
-    let explosionCountersPerController = []
-    let serverMoveTimestampExpiredPerPawn = []
-    let pawnsToPlayerNames = []
-    let chainIdToPlayerController = []
-    let playerNameToPlayerController = []
-    let playerControllerToPlayerName = []
-    let playerControllerToSteamID = []
-    let killsPerPlayerController = []
-
-    const splitLogs = logs.split('\n');
-    for (let lI in splitLogs) {
-        const line = splitLogs[ lI ];
-        // if (lI > 250000) continue;
-
-        let regex, res;
-        regex = /\[(.+)\]\[\d+]LogSquad: .+: Server Tick Rate: (\d+.?\d+)/;
-        res = regex.exec(line);
-        if (res) {
-            const obj = {
-                x: getDateTime(res[ 1 ]).toLocaleString(),
-                y: Math.round(+res[ 2 ])
-            }
-            chartPoints.push(obj)
-            if (layers[ 0 ] && layers[ 0 ].x == 0) layers[ 0 ].x = obj.x
-            playerPoints.push({
-                x: obj.x,
-                y: playerPoints[ playerPoints.length - 1 ].y
-            })
-            queuePoints.push({
-                x: obj.x,
-                y: queuePoints[ queuePoints.length - 1 ].y
-            })
-            hostClosedConnectionPoints.push({
-                x: obj.x,
-                y: 0
-            })
-            fragPoints.push({
-                x: obj.x,
-                y: 0
-            })
-            serverMovePoints.push({
-                x: obj.x,
-                y: 0
-            })
-            queueDisconnectionPoints.push({
-                x: obj.x,
-                y: 0
-            })
-            steamEmptyTicket.push({
-                x: obj.x,
-                y: 0
-            })
-
-
-            // console.log('TPS', obj);
-            continue;
-        }
-
-        regex = / ServerName: \'(.+)\' RegisterTimeout:/
-        res = regex.exec(line);
-        if (res) {
-            serverName = res[ 1 ];
-            // // continue;
-        }
-
-        regex = /LogInit: OS: .+, CPU: (.+), GPU:/
-        res = regex.exec(line);
-        if (res) {
-            serverCPU = res[ 1 ];
-        }
-
-        regex = /LogNetVersion: Set ProjectVersion to (V.+)\. Version/
-        res = regex.exec(line);
-        if (res) {
-            serverVersion = res[ 1 ];
-            // // continue;
-        }
-
-        // regex = /(NotifyAcceptingChannel)|(LogEOSNetworkAuth: Verbose: .+: connection: All phases finished successfully)/
-        // regex = /NotifyAcceptingConnection accepted from/
-        // regex = /LogNet: Server accepting post-challenge connection from/
-        // regex = /LogNet: AddClientConnection: Added client connection: \[UNetConnection\] RemoteAddr/
-        regex = /NotifyAcceptingChannel/;
-        // regex = /LogEOSNetworkAuth: Verbose: .+: connection: All phases finished successfully/
-        // regex = /LogBeacon: Beacon Hello/
-        // regex = /LogNet: NotifyAcceptingChannel Control .+ server OnlineBeaconHost/
-        res = regex.exec(line);
-        if (res) {
-            queuePoints[ queuePoints.length - 1 ].y += 1;
-            if (queuePoints[ queuePoints.length - 1 ].y > maxQueue) maxQueue = queuePoints[ queuePoints.length - 1 ].y;
-            // continue;
-        }
-        regex = /AUTH HANDLER: Sending auth result to user .+ with flag success\? 0/;
-        res = regex.exec(line);
-        if (res) {
-            queueDisconnectionPoints[ queueDisconnectionPoints.length - 1 ].y += 3;
-        }
-        regex = /LogOnline: Warning: STEAM: AUTH: Ticket from user .+ is empty/;
-        res = regex.exec(line);
-        if (res) {
-            steamEmptyTicket[ steamEmptyTicket.length - 1 ].y += 1;
-        }
-
-        // [2023.09.16-20.39.02:988][879]LogNet: UNetConnection::Close: [UNetConnection] RemoteAddr: 94.33.215.163:54270, Name: EOSIpNetConnection_2147163289, Driver: EOSNetDriver_2147171121 EOSNetDriver_2147171121, IsServer: YES, PC: NULL, Owner: SQJoinBeaconClient_2147163284, UniqueId: RedpointEOS:0002a9b6e5ca4343beb7578f8d8ac823, Channels: 3, Time: 2023.09.16-20.39.02
-        regex = /CloseBunch/
-        // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr: .+, Name: EOSIpNetConnection.+, Driver: EOSNetDriver.+ EOSNetDriver.+, IsServer: YES, PC: .+, Owner: SQJoinBeaconClient.+, UniqueId: RedpointEOS/
-        // regex = /LogNet: UNetConnection::Close: \[UNetConnection\] RemoteAddr:/
-        res = regex.exec(line);
-        if (res) {
-            queuePoints[ queuePoints.length - 1 ].y -= 1;
-            // // continue;
-        }
-
-        // regex = /LogEOSNetworkAuth: Verbose: .+: login: All phases finished successfully/;
-        // regex = /\[.+\]\[ ?(\d+)\]LogNet: Join succeeded: (.+)/;
-        regex = /LogSquad: PostLogin: NewPlayer: [^ ]+PlayerController_C/;
-        // regex = /LogNet: Client netspeed is/;
-        res = regex.exec(line);
-        // console.log(res);
-        if (res) {
-            playerPoints[ playerPoints.length - 1 ].y += 1;
-            playerNameToPlayerController[ res[ 2 ] ] = chainIdToPlayerController[ res[ 1 ] ];
-            playerControllerToPlayerName[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
-            // queuePoints[ queuePoints.length - 1 ].y -= 1;
-            // console.log(playerPoints[ playerPoints.length - 1 ].y)
-            // continue;
-        }
-
-        // regex = /LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == \d\. Name: \[UChannel\] ChIndex: \d[,\.] Closing: \d \[UNetConnection\] RemoteAddr: .+\:\d+, Name: ((SteamNetConnection)|(EOSIpNetConnection)).+, Driver: ((GameNetDriver)|(EOSNetDriver)).+, IsServer: YES, PC: [^ ]+PlayerController_C.+, Owner: .+, UniqueId: ((Steam)|(RedpointEOS)):[\w\d]+/;
-        regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == [0-9]+\. Name: \[UChannel\] ChIndex: [0-9]+, Closing: [0-9]+ \[UNetConnection\] RemoteAddr: (.+):[0-9]+, Name: (Steam|EOSIp)NetConnection_[0-9]+, Driver: GameNetDriver (Steam|EOS)NetDriver_[0-9]+, IsServer: YES, PC: ([^ ]+PlayerController_C_[0-9]+), Owner: [^ ]+PlayerController_C_[0-9]+/
-        res = regex.exec(line);
-        if (res) {
-            playerPoints[ playerPoints.length - 1 ].y -= 1;
-            // queuePoints[ queuePoints.length - 1 ].y -= 1;
-            // continue;
-        }
-
-        regex = /LogOnlineGame: Display: Kicking player: .+ ; Reason = Host closed the connection/;
-        res = regex.exec(line);
-        if (res) {
-            hostClosedConnectionPoints[ hostClosedConnectionPoints.length - 1 ].y += 3;
-            // queuePoints[ queuePoints.length - 1 ].y -= 1;
-            // continue;
-        }
-
-        regex = /\[(.+)\].+LogSquad: OnPreLoadMap: Loading map .+\/([^\/]+)$/;
-        res = regex.exec(line);
-        if (res) {
-            layers.push({
-                x: 0,
-                y: 150,
-                label: res[ 2 ]
-            })
-            // layers[ layers.length - 1 ].y += 3;
-            // continue;
-        }
-
-        regex = /\[(.+)\].+LogWorld: SeamlessTravel to: .+\/([^\/]+)$/;
-        res = regex.exec(line);
-        if (res) {
-            layers.push({
-                x: chartPoints[ chartPoints.length - 1 ]?.x,
-                y: 150,
-                label: res[ 2 ]
-            })
-            // layers[ layers.length - 1 ].y += 3;
-            // continue;
-        }
-
-        regex = /Frag_C.*DamageInstigator=(BP_PlayerController_C_\d+) /;
-        res = regex.exec(line);
-        if (res) {
-            fragPoints[ fragPoints.length - 1 ].y += 1;
-
-            const playerController = res[ 1 ];
-            if (!explosionCountersPerController[ playerController ]) explosionCountersPerController[ playerController ] = 0;
-            explosionCountersPerController[ playerController ]++;
-
-            // continue;
-        }
-
-        regex = /ServerMove\: TimeStamp expired.+Character: (.+)/;
-        res = regex.exec(line);
-        if (res) {
-            serverMovePoints[ serverMovePoints.length - 1 ].y += 0.05;
-
-            const playerName = pawnsToPlayerNames[ res[ 1 ] ];
-            const playerController = playerNameToPlayerController[ playerName ]
-            if (!serverMoveTimestampExpiredPerPawn[ playerController ]) serverMoveTimestampExpiredPerPawn[ playerController ] = 0;
-            serverMoveTimestampExpiredPerPawn[ playerController ]++;
-
-            // continue;
-        }
-
-        regex = /Client netspeed is (\d+)/;
-        res = regex.exec(line);
-        if (res) {
-            clientNetSpeed.push({
-                x: chartPoints[ chartPoints.length - 1 ]?.x,
-                y: (+res[ 1 ]) / 1000,
-                label: res[ 2 ]
-            })
-            uniqueClientNetSpeedValues.add(+res[ 1 ]);
-        }
-
-        regex = /OnPossess\(\): PC=(.+) Pawn=(.+) FullPath/;
-        res = regex.exec(line);
-        if (res) {
-            pawnsToPlayerNames[ res[ 2 ] ] = res[ 1 ];
-            // continue;
-        }
-
-        regex = /\[.+\]\[ ?(\d+)\]LogSquad: PostLogin: NewPlayer: BP_PlayerController_C.+PersistentLevel\.(.+)/;
-        res = regex.exec(line);
-        if (res) {
-            chainIdToPlayerController[ res[ 1 ] ] = res[ 2 ];
-            // continue;
-        }
-
-        regex = /\[.+\]\[ ?(\d+)\]LogEOS: \[Category: LogEOSAntiCheat\] \[AntiCheatServer\] \[RegisterClient-001\].+AccountId: (\d+) IpAddress/;
-        res = regex.exec(line);
-        if (res) {
-            playerControllerToSteamID[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
-            // continue;
-        }
-
-        regex = /Die\(\): Player:.+from (.+) caused by (.+)/;
-        res = regex.exec(line);
-        if (res) {
-            let playerController = res[ 1 ]
-            if (!playerController || playerController == 'nullptr') {
-                playerController = playerNameToPlayerController[ pawnsToPlayerNames[ res[ 2 ] ] ]
-                // console.log(line)
-            }
-            if (!killsPerPlayerController[ playerController ]) killsPerPlayerController[ playerController ] = 0;
-            killsPerPlayerController[ playerController ]++;
-            // continue;
-        }
-
-        // regex = /LogOnlineGame: Display: Kicking player: .+ ; Reason = Host closed the connection/;
-        // res = regex.exec(line);
-        // if (res) {
-        //     playerPoints[ playerPoints.length - 1 ].y -= 1;
-        //     continue;
-        // }
-        // res = null;
-    }
-
-    console.log(`\n\x1b[1m\x1b[34m### SERVER STAT REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
-    console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mHost Closed Connections:\x1b[0m ${hostClosedConnectionPoints.map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
-    console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${queueDisconnectionPoints.map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
-    console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${steamEmptyTicket.map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
-    console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mUnique Client NetSpeed Values:\x1b[0m ${[...uniqueClientNetSpeedValues.values()].join('; ')}`)
-    console.log(`\x1b[1m\x1b[34m### STARTING CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
-    const cheaters = {
-        Explosions: explosionCountersPerController,
-        ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn,
-        Kills: killsPerPlayerController
-    }
-
-    for (let cK in cheaters) {
-        let minCount = 200;
-        switch (cK) {
-            case 'Explosions':
-                minCount = 200;
-                break;
-            case 'ServerMoveTimeStampExpired':
-                minCount = 5000;
-                break;
-            case 'Kills':
-                minCount = 100;
-                break;
-        }
-
-        console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31m${cK.toUpperCase()}\x1b[0m`)
-        for (let playerId in cheaters[ cK ])
-            if (cheaters[ cK ][ playerId ] > minCount) {
-                let playerName;
-                let playerSteamID;
-                let playerController;
-
-                playerController = playerId
-                playerName = playerControllerToPlayerName[ playerController ];
-                playerSteamID = playerControllerToSteamID[ playerController ]
-
-                console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
-            }
-    }
-    console.log(`\x1b[1m\x1b[34m#### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
-
-
-    // chartPoints.forEach((v,i,
-
-    let canvasWidth = Math.max(Math.min(splitLogs.length / 120, 30000), 4000);
-    let canvasHeight = 2000;
-
-    const layerTextPlugin = {
-        id: 'layerText',
-        afterDatasetDraw(chart, args, pluginOptions) {
-            // console.log(args.meta.dataset.label)
-            const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
-            const { chartArea } = chart;
-            if (args.index != 5) return;
-
-            const chartMaxY = chart.scales.y.max;
-            data.datasets[ args.index ].data.forEach((dataPoint, index) => {
-                ctx.font = 'bolder 35px sans-serif';
-                ctx.fillStyle = "#888888";
-                ctx.save();
-                ctx.translate(x.getPixelForValue(dataPoint.x) + 30, chartArea.top + chartArea.height - (chartArea.height * (50 / chartMaxY)) - 30);
-                ctx.rotate(Math.PI + 2)
-                ctx.fillText(dataPoint.label, 0, 0)
-                ctx.restore();
-            })
-        }
-    }
-    const serverNamePlugin = {
-        id: 'layerText',
-        afterDatasetDraw(chart, args, pluginOptions) {
-            // console.log(args.meta.dataset.label)
-            const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
-            const { chartArea } = chart;
-            if (args.index != 3) return;
-
-            const chartMaxY = chart.scales.y.max;
-            data.datasets[ args.index ].data.forEach((dataPoint, index) => {
-                ctx.font = 'bolder 80px sans-serif';
-                ctx.fillStyle = "#999999";
-                ctx.save();
-                ctx.translate(200, 80);
-                ctx.fillText(serverName, 0, 0)
-                ctx.restore();
-            })
-        }
-    }
-    const serverVersionPlugin = {
-        id: 'layerText',
-        afterDatasetDraw(chart, args, pluginOptions) {
-            // console.log(args.meta.dataset.label)
-            const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
-            const { chartArea } = chart;
-            if (args.index != 3) return;
-
-            const chartMaxY = chart.scales.y.max;
-            data.datasets[ args.index ].data.forEach((dataPoint, index) => {
-                ctx.font = 'bolder 50px sans-serif';
-                ctx.fillStyle = "#999999";
-                ctx.save();
-                ctx.translate(50, canvasHeight - 60);
-                ctx.fillText(serverVersion, 0, 0)
-                ctx.restore();
-            })
-        }
-    }
-    const serverCPUPlugin = {
-        id: 'layerText',
-        afterDatasetDraw(chart, args, pluginOptions) {
-            // console.log(args.meta.dataset.label)
-            const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
-            const { chartArea } = chart;
-            if (args.index != 3) return;
-
-            const chartMaxY = chart.scales.y.max;
-            data.datasets[ args.index ].data.forEach((dataPoint, index) => {
-                ctx.font = 'bolder 50px sans-serif';
-                ctx.fillStyle = "#999999";
-                ctx.save();
-                ctx.translate(550, canvasHeight - 60);
-                ctx.fillText(serverCPU, 0, 0)
-                ctx.restore();
-            })
-        }
-    }
-    const tpsColorPlugin = {
-        id: 'tpsColor',
-        // beforeRender: (chart, args, options) => {
-        //     // const c = x.chart;
-        //     //  console.log(options)
-
-        //     const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
-        //     const { chartArea } = chart;
-
-        //     const dataset = data.datasets[ 0 ];
-        //     const yScale = y;
-        //     const yPos = yScale.getPixelForValue(0);
-
-        //     // console.log(chart.height)
-        //     const gradientFill = ctx.createLinearGradient(0, 0, 0, chart.height);
-        //     gradientFill.addColorStop(0, '#FF0000');
-        //     gradientFill.addColorStop(1, '#00FF00');
-
-
-        //     // ctx.createLinearGradient()
-        //     // gradientFill.addColorStop(yPos / chart.height, 'rgb(86,188,77)');
-        //     // gradientFill.addColorStop(yPos / chart.height, 'rgb(229,66,66)');
-
-
-        //     // const model = x._meta[ Object.keys(dataset._meta)[ 0 ] ].dataset._model;
-        //     const dtMeta = chart.getDatasetMeta(0);
-        //     const model = dtMeta.dataset;
-        //     // console.log(chart.getDatasetMeta(0).dataset.getProps())
-        //     console.log(model)
-
-        //     // chart.getDatasetMeta(0).dataset.getProps()._model.borderColor = gradientFill
-
-        //     // const model = dts_meta[ Object.keys(dtset._meta)[ 0 ] ].dataset._model;
-
-        // },
-    }
-    // const layerTextPlugin = {
-    //     id: 'layerText',
-    //     afterDatasetDraw(chart, args, pluginOptions) {
-    //         // console.log(args.meta.dataset.label)
-    //         const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
-    //         const { chartArea } = chart;
-    //         if (args.index != 3) return;
-
-    //         const chartMaxY = chart.scales.y.max;
-    //         data.datasets[ args.index ].data.forEach((dataPoint, index) => {
-    //             ctx.font = 'bolder 35px sans-serif';
-    //             ctx.fillStyle = "#888888";
-    //             ctx.save();
-    //             ctx.translate(x.getPixelForValue(dataPoint.x) + 30, chartArea.top + chartArea.height - (chartArea.height * (50 / chartMaxY)) - 30);
-    //             ctx.rotate(Math.PI + 2)
-    //             ctx.fillText(dataPoint.label, 0, 0)
-    //             ctx.restore();
-    //         })
-    //     }
-    // }
-
-    const ENABLE_TPS_BACKGROUND = false
-    const chartBackground = {
-        id: 'customCanvasBackgroundColor',
-        beforeDraw: (chart, args, options) => {
-            const { ctx, chartArea } = chart;
-            // console.log(chart)
-            // console.log(chartArea.left, chart.height - chartArea.height, chartArea.width, +chart.height - +chartArea.top)
-            ctx.save();
-            ctx.globalCompositeOperation = 'destination-over';
-
-            const chartMaxY = chart.scales.y.max;
-
-            if (ENABLE_TPS_BACKGROUND) {
-                ctx.fillStyle = '#00FF0018';
-                ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * (50 / chartMaxY)), chartArea.width, chartArea.height * (25 / chartMaxY));
-
-                ctx.fillStyle = '#FFFF0018';
-                ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * (25 / chartMaxY)), chartArea.width, chartArea.height * (10 / chartMaxY));
-
-                ctx.fillStyle = '#FF000018';
-                ctx.fillRect(chartArea.left, chartArea.top + chartArea.height - (chartArea.height * (15 / chartMaxY)), chartArea.width, chartArea.height * (15 / chartMaxY));
-            }
-
-            ctx.fillStyle = options.color || '#222224';
-            ctx.fillRect(0, 0, chart.width, chart.height);
-
-            // // ctx.fillRect(0, 0, chart.width, chart.height/2);
-            ctx.restore();
-        }
-    }
-    const chartCanvas = createCanvas(canvasWidth, canvasHeight);
-    Chart.defaults.font.size = 40;
-
-    function tpsColorGradient(context) {
-        const chart = context.chart;
-        const { ctx, chartArea } = chart;
-
-        if (!chartArea) return;
-
-        const gradient = ctx.createLinearGradient(0, chart.scales.y.getPixelForValue(0), 0, chart.scales.y.getPixelForValue(50));
-
-        gradient.addColorStop(15 / 50, 'red');
-        gradient.addColorStop(15 / 50, 'yellow');
-        gradient.addColorStop(25 / 50, 'yellow');
-        gradient.addColorStop(25 / 50, '#00BBFF');
-        // gradient.addColorStop(25 / 50, 'green');
-
-        return gradient
-    }
-
-    function tpsColorGradientBackground(context) {
-        const chart = context.chart;
-        const { ctx, chartArea } = chart;
-
-        if (!chartArea) return;
-
-        const gradient = ctx.createLinearGradient(0, chart.scales.y.getPixelForValue(0), 0, chart.scales.y.getPixelForValue(50));
-
-        const opacity = 29;
-        gradient.addColorStop(15 / 50, `#FF0000${opacity}`);
-        gradient.addColorStop(15 / 50, `#FFFF00${opacity}`);
-        gradient.addColorStop(25 / 50, `#FFFF00${opacity}`);
-        gradient.addColorStop(25 / 50, `#00BBFF${opacity}`);
-        // gradient.addColorStop(25 / 50, 'green');
-
-        return gradient
-    }
-
-    const chart = new Chart(chartCanvas, {
-        type: "line",
-        data: {
-            xLabels: chartPoints.map(p => p.x),
-            datasets: [
-                {
-                    pointStyle: 'circle',
-                    pointRadius: 0,
-                    label: 'TickRate',
-                    data: chartPoints,
-                    fill: true,
-                    backgroundColor: tpsColorGradientBackground,
-                    borderColor: tpsColorGradient,
-                    segment: {
-                        // borderColor: (context) => {
-                        //     // console.log(context);
-                        //     // var index = context.dataIndex;
-                        //     // var value = context.dataset.data[ index ].y;
-                        //     const defaultColor = '#00BBFF'
-                        //     const p0 = context.p0.parsed?.y
-                        //     const p1 = context.p1.parsed?.y
-                        //     let value = Math.min(p0, p1)
-                        //     if (Math.abs(p0 - p1) > 15) return defaultColor;
-
-                        //     let color;
-                        //     if (value <= 15) color = '#DD0000';
-                        //     else if (value > 15 && value <= 25) color = '#FFDD00';
-                        //     else color = defaultColor
-                        //     // console.log(color)
-                        //     // return value < 25 ? '#FF0000' : '#00BBFF'
-                        //     return color;
-                        // }
-
-                    }
-                },
-                {
-                    pointStyle: 'circle',
-                    pointRadius: 0,
-                    label: 'Player Count',
-                    data: playerPoints,
-                    backgroundColor: "#FF4466",
-                    borderColor: "#FF4466",
-                    // backgroundColor: "#FF0000"
-                },
-                {
-                    pointStyle: 'circle',
-                    pointRadius: 0,
-                    label: 'Queue Count',
-                    data: queuePoints,
-                    backgroundColor: "#FF446666",
-                    borderColor: "#FF446666",
-                    // backgroundColor: "#BB2244",
-                    // borderColor: "#BB2244",
-                    // backgroundColor: "#FF0000"
-                },
-                {
-                    pointStyle: 'circle',
-                    pointRadius: 0,
-                    label: 'HostClosedConnection*3',
-                    data: hostClosedConnectionPoints,
-                    backgroundColor: "#d87402",
-                    borderColor: "#d87402",
-                },
-                {
-                    pointStyle: 'circle',
-                    pointRadius: 0,
-                    label: 'Failed Queue Connections',
-                    data: queueDisconnectionPoints,
-                    backgroundColor: "#b5ac4f",
-                    borderColor: "#b5ac4f",
-                },
-                {
-                    type: 'bar',
-                    label: 'Layers',
-                    data: layers,
-                    barThickness: 5,
-                    borderWidth: {
-                        right: "100px",
-                    },
-                    borderSkipped: false,
-                    // backgroundColor: "#FFCC0033",
-                    // borderColor: "#FFCC0033",
-                    backgroundColor: "#FFFFFF22",
-                    borderColor: "#FFFFFF22",
-                },
-                {
-                    pointStyle: 'circle',
-                    pointRadius: 0,
-                    label: 'Explosions',
-                    data: fragPoints,
-                    backgroundColor: "#ba01ba",
-                    borderColor: "#ba01ba",
-                },
-                {
-                    pointStyle: 'circle',
-                    pointRadius: 0,
-                    label: 'ServerMoveTSExp/20',
-                    data: serverMovePoints,
-                    backgroundColor: "#8888FF",
-                    borderColor: "#8888FF",
-                },
-                {
-                    pointStyle: 'circle',
-                    pointRadius: 0,
-                    label: 'ClientNetSpeed/1000',
-                    data: clientNetSpeed,
-                    backgroundColor: "#397060",
-                    borderColor: "#397060",
-                },
-            ]
-        },
-        options: {
-            // layout: {
-            //     padding: 50
-            // },
-            layout: {
-                padding: {
-                    left: 200,
-                    right: 50,
-                    top: 150,
-                    bottom: 100
+function drawGraph(logPath /*string*/, fileNameNoExt) {
+    return new Promise((resolve, reject) => {
+
+
+        let serverName = '';
+        let serverVersion = '';
+        let serverCPU = '';
+        let chartPoints = [];
+        let queuePoints = [ {
+            x: 0,
+            y: 0
+        } ];
+        let playerPoints = [ {
+            x: 0,
+            y: 0
+        } ];
+        let hostClosedConnectionPoints = [ {
+            x: 0,
+            y: 0
+        } ];
+        let serverMovePoints = [ {
+            x: 0,
+            y: 0
+        } ];
+        let fragPoints = [ {
+            x: 0,
+            y: 0
+        } ];
+        let queueDisconnectionPoints = [ {
+            x: 0,
+            y: 0
+        } ];
+        let steamEmptyTicket = [ {
+            x: 0,
+            y: 0
+        } ];
+        let clientNetSpeed = [ {
+            x: 0,
+            y: 0
+        } ];
+        let maxQueue = 0;
+        let layers = []
+
+        let uniqueClientNetSpeedValues = new Set();
+
+        let explosionCountersPerController = []
+        let serverMoveTimestampExpiredPerPawn = []
+        let pawnsToPlayerNames = []
+        let chainIdToPlayerController = []
+        let playerNameToPlayerController = []
+        let playerControllerToPlayerName = []
+        let playerControllerToSteamID = []
+        let killsPerPlayerController = []
+
+
+        const fileStream = fs.createReadStream(logPath);
+        const rl = readline.createInterface({
+            input: fileStream,
+            crlfDelay: Infinity,
+        });
+
+        let totalLines = 0;
+        rl.on("line", (line) => {
+            totalLines++;
+            let regex, res;
+            regex = /\[(.+)\]\[\d+]LogSquad: .+: Server Tick Rate: (\d+.?\d+)/;
+            res = regex.exec(line);
+            if (res) {
+                const obj = {
+                    x: getDateTime(res[ 1 ]).toLocaleString(),
+                    y: Math.round(+res[ 2 ])
                 }
-            },
-            scales: {
-                x: {
-                    min: 0,
-                    max: chartPoints.length,
-                    grid: {
-                        lineWidth: 0
+                chartPoints.push(obj)
+                if (layers[ 0 ] && layers[ 0 ].x == 0) layers[ 0 ].x = obj.x
+                playerPoints.push({
+                    x: obj.x,
+                    y: playerPoints[ playerPoints.length - 1 ].y
+                })
+                queuePoints.push({
+                    x: obj.x,
+                    y: queuePoints[ queuePoints.length - 1 ].y
+                })
+                hostClosedConnectionPoints.push({
+                    x: obj.x,
+                    y: 0
+                })
+                fragPoints.push({
+                    x: obj.x,
+                    y: 0
+                })
+                serverMovePoints.push({
+                    x: obj.x,
+                    y: 0
+                })
+                queueDisconnectionPoints.push({
+                    x: obj.x,
+                    y: 0
+                })
+                steamEmptyTicket.push({
+                    x: obj.x,
+                    y: 0
+                })
+            }
+
+            regex = / ServerName: \'(.+)\' RegisterTimeout:/
+            res = regex.exec(line);
+            if (res) {
+                serverName = res[ 1 ];
+            }
+
+            regex = /LogInit: OS: .+, CPU: (.+), GPU:/
+            res = regex.exec(line);
+            if (res) {
+                serverCPU = res[ 1 ];
+            }
+
+            regex = /LogNetVersion: Set ProjectVersion to (V.+)\. Version/
+            res = regex.exec(line);
+            if (res) {
+                serverVersion = res[ 1 ];
+            }
+
+            regex = /NotifyAcceptingChannel/;
+            res = regex.exec(line);
+            if (res) {
+                queuePoints[ queuePoints.length - 1 ].y += 1;
+                if (queuePoints[ queuePoints.length - 1 ].y > maxQueue) maxQueue = queuePoints[ queuePoints.length - 1 ].y;
+            }
+            regex = /AUTH HANDLER: Sending auth result to user .+ with flag success\? 0/;
+            res = regex.exec(line);
+            if (res) {
+                queueDisconnectionPoints[ queueDisconnectionPoints.length - 1 ].y += 3;
+            }
+            regex = /LogOnline: Warning: STEAM: AUTH: Ticket from user .+ is empty/;
+            res = regex.exec(line);
+            if (res) {
+                steamEmptyTicket[ steamEmptyTicket.length - 1 ].y += 1;
+            }
+
+            regex = /CloseBunch/
+            res = regex.exec(line);
+            if (res) {
+                queuePoints[ queuePoints.length - 1 ].y -= 1;
+            }
+
+            regex = /LogSquad: PostLogin: NewPlayer: [^ ]+PlayerController_C/;
+            res = regex.exec(line);
+            if (res) {
+                playerPoints[ playerPoints.length - 1 ].y += 1;
+                playerNameToPlayerController[ res[ 2 ] ] = chainIdToPlayerController[ res[ 1 ] ];
+                playerControllerToPlayerName[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
+            }
+
+            regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == [0-9]+\. Name: \[UChannel\] ChIndex: [0-9]+, Closing: [0-9]+ \[UNetConnection\] RemoteAddr: (.+):[0-9]+, Name: (Steam|EOSIp)NetConnection_[0-9]+, Driver: GameNetDriver (Steam|EOS)NetDriver_[0-9]+, IsServer: YES, PC: ([^ ]+PlayerController_C_[0-9]+), Owner: [^ ]+PlayerController_C_[0-9]+/
+            res = regex.exec(line);
+            if (res) {
+                playerPoints[ playerPoints.length - 1 ].y -= 1;
+            }
+
+            regex = /LogOnlineGame: Display: Kicking player: .+ ; Reason = Host closed the connection/;
+            res = regex.exec(line);
+            if (res) {
+                hostClosedConnectionPoints[ hostClosedConnectionPoints.length - 1 ].y += 3;
+            }
+
+            regex = /\[(.+)\].+LogSquad: OnPreLoadMap: Loading map .+\/([^\/]+)$/;
+            res = regex.exec(line);
+            if (res) {
+                layers.push({
+                    x: 0,
+                    y: 150,
+                    label: res[ 2 ]
+                })
+            }
+
+            regex = /\[(.+)\].+LogWorld: SeamlessTravel to: .+\/([^\/]+)$/;
+            res = regex.exec(line);
+            if (res) {
+                layers.push({
+                    x: chartPoints[ chartPoints.length - 1 ]?.x,
+                    y: 150,
+                    label: res[ 2 ]
+                })
+            }
+
+            regex = /Frag_C.*DamageInstigator=(BP_PlayerController_C_\d+) /;
+            res = regex.exec(line);
+            if (res) {
+                fragPoints[ fragPoints.length - 1 ].y += 1;
+
+                const playerController = res[ 1 ];
+                if (!explosionCountersPerController[ playerController ]) explosionCountersPerController[ playerController ] = 0;
+                explosionCountersPerController[ playerController ]++;
+            }
+
+            regex = /ServerMove\: TimeStamp expired.+Character: (.+)/;
+            res = regex.exec(line);
+            if (res) {
+                serverMovePoints[ serverMovePoints.length - 1 ].y += 0.05;
+
+                const playerName = pawnsToPlayerNames[ res[ 1 ] ];
+                const playerController = playerNameToPlayerController[ playerName ]
+                if (!serverMoveTimestampExpiredPerPawn[ playerController ]) serverMoveTimestampExpiredPerPawn[ playerController ] = 0;
+                serverMoveTimestampExpiredPerPawn[ playerController ]++;
+            }
+
+            regex = /Client netspeed is (\d+)/;
+            res = regex.exec(line);
+            if (res) {
+                clientNetSpeed.push({
+                    x: chartPoints[ chartPoints.length - 1 ]?.x,
+                    y: (+res[ 1 ]) / 1000,
+                    label: res[ 2 ]
+                })
+                uniqueClientNetSpeedValues.add(+res[ 1 ]);
+            }
+
+            regex = /OnPossess\(\): PC=(.+) Pawn=(.+) FullPath/;
+            res = regex.exec(line);
+            if (res) {
+                pawnsToPlayerNames[ res[ 2 ] ] = res[ 1 ];
+            }
+
+            regex = /\[.+\]\[ ?(\d+)\]LogSquad: PostLogin: NewPlayer: BP_PlayerController_C.+PersistentLevel\.(.+)/;
+            res = regex.exec(line);
+            if (res) {
+                chainIdToPlayerController[ res[ 1 ] ] = res[ 2 ];
+            }
+
+            regex = /\[.+\]\[ ?(\d+)\]LogEOS: \[Category: LogEOSAntiCheat\] \[AntiCheatServer\] \[RegisterClient-001\].+AccountId: (\d+) IpAddress/;
+            res = regex.exec(line);
+            if (res) {
+                playerControllerToSteamID[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
+            }
+
+            regex = /Die\(\): Player:.+from (.+) caused by (.+)/;
+            res = regex.exec(line);
+            if (res) {
+                let playerController = res[ 1 ]
+                if (!playerController || playerController == 'nullptr') {
+                    playerController = playerNameToPlayerController[ pawnsToPlayerNames[ res[ 2 ] ] ]
+                }
+                if (!killsPerPlayerController[ playerController ]) killsPerPlayerController[ playerController ] = 0;
+                killsPerPlayerController[ playerController ]++;
+            }
+        })
+
+        rl.on("close", () => {
+            console.log(`\n\x1b[1m\x1b[34m### SERVER STAT REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mHost Closed Connections:\x1b[0m ${hostClosedConnectionPoints.map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${queueDisconnectionPoints.map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${steamEmptyTicket.map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mUnique Client NetSpeed Values:\x1b[0m ${[ ...uniqueClientNetSpeedValues.values() ].join('; ')}`)
+            console.log(`\x1b[1m\x1b[34m### STARTING CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+            const cheaters = {
+                Explosions: explosionCountersPerController,
+                ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn,
+                Kills: killsPerPlayerController
+            }
+
+            for (let cK in cheaters) {
+                let minCount = 200;
+                switch (cK) {
+                    case 'Explosions':
+                        minCount = 200;
+                        break;
+                    case 'ServerMoveTimeStampExpired':
+                        minCount = 5000;
+                        break;
+                    case 'Kills':
+                        minCount = 100;
+                        break;
+                }
+
+                console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31m${cK.toUpperCase()}\x1b[0m`)
+                for (let playerId in cheaters[ cK ])
+                    if (cheaters[ cK ][ playerId ] > minCount) {
+                        let playerName;
+                        let playerSteamID;
+                        let playerController;
+
+                        playerController = playerId
+                        playerName = playerControllerToPlayerName[ playerController ];
+                        playerSteamID = playerControllerToSteamID[ playerController ]
+
+                        console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
+                    }
+            }
+            console.log(`\x1b[1m\x1b[34m#### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+
+            let canvasWidth = Math.max(Math.min(totalLines / 120, 30000), 4000);
+            let canvasHeight = 2000;
+
+            const chartCanvas = createCanvas(canvasWidth, canvasHeight);
+            Chart.defaults.font.size = 40;
+
+            const chart = new Chart(chartCanvas, {
+                type: "line",
+                data: {
+                    xLabels: chartPoints.map(p => p.x),
+                    datasets: [
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'TickRate',
+                            data: chartPoints,
+                            fill: true,
+                            backgroundColor: tpsColorGradientBackground,
+                            borderColor: tpsColorGradient
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'Player Count',
+                            data: playerPoints,
+                            backgroundColor: "#FF4466",
+                            borderColor: "#FF4466",
+                            // backgroundColor: "#FF0000"
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'Queue Count',
+                            data: queuePoints,
+                            backgroundColor: "#FF446666",
+                            borderColor: "#FF446666",
+                            // backgroundColor: "#BB2244",
+                            // borderColor: "#BB2244",
+                            // backgroundColor: "#FF0000"
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'HostClosedConnection*3',
+                            data: hostClosedConnectionPoints,
+                            backgroundColor: "#d87402",
+                            borderColor: "#d87402",
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'Failed Queue Connections',
+                            data: queueDisconnectionPoints,
+                            backgroundColor: "#b5ac4f",
+                            borderColor: "#b5ac4f",
+                        },
+                        {
+                            type: 'bar',
+                            label: 'Layers',
+                            data: layers,
+                            barThickness: 5,
+                            borderWidth: {
+                                right: "100px",
+                            },
+                            borderSkipped: false,
+                            // backgroundColor: "#FFCC0033",
+                            // borderColor: "#FFCC0033",
+                            backgroundColor: "#FFFFFF22",
+                            borderColor: "#FFFFFF22",
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'Explosions',
+                            data: fragPoints,
+                            backgroundColor: "#ba01ba",
+                            borderColor: "#ba01ba",
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'ServerMoveTSExp/20',
+                            data: serverMovePoints,
+                            backgroundColor: "#8888FF",
+                            borderColor: "#8888FF",
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'ClientNetSpeed/1000',
+                            data: clientNetSpeed,
+                            backgroundColor: "#397060",
+                            borderColor: "#397060",
+                        },
+                    ]
+                },
+                options: {
+                    layout: {
+                        padding: {
+                            left: 200,
+                            right: 50,
+                            top: 150,
+                            bottom: 100
+                        }
+                    },
+                    scales: {
+                        x: {
+                            min: 0,
+                            max: chartPoints.length,
+                            grid: {
+                                lineWidth: 0
+                            }
+                        },
+                        y: {
+                            min: 0,
+                            max: Math.max(100, maxQueue),
+                            ticks: {
+                                stepSize: 5
+                            },
+                            grid: {
+                                lineWidth: 0
+                            }
+                        }
                     }
                 },
-                y: {
-                    min: 0,
-                    max: Math.max(100, maxQueue),
-                    ticks: {
-                        stepSize: 5
-                    },
-                    grid: {
-                        lineWidth: 0
-                    }
-                    // grid: {
-                    //     lineWidth: 5,
-                    //     color: function (context) {
-                    //         if (context.tick.value <= 15) {
-                    //             return "#FF000018";
-                    //         } else if (context.tick.value <= 25) {
-                    //             return "#FFFF0018";
-                    //         } else if (context.tick.value <= 50) {
-                    //             return "#00FF0018";
-                    //         }
+                plugins: [
+                    chartBackgroundPlugin(!!+process.env.ENABLE_TPS_BACKGROUND),
+                    layerTextPlugin(),
+                    serverNamePlugin(serverName),
+                    serverVersionPlugin(serverVersion, canvasWidth, canvasHeight),
+                    serverCPUPlugin(serverCPU, canvasWidth, canvasHeight),
+                ]
+            });
 
-                    //         return "#00000000"
-                    //     },
-                    // },
-                }
-            }
-        },
-        plugins: [
-            chartBackground,
-            layerTextPlugin,
-            // tpsColorPlugin,
-            serverNamePlugin,
-            serverVersionPlugin,
-            serverCPUPlugin
-        ]
+            resolve(chartCanvas);
+        })
 
-
+        rl.on('error', (err) => {
+            reject(err);
+        });
     });
-
-    return chartCanvas;
 }
 
 function getDateTime(date) {
