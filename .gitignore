@@ -1,0 +1,13 @@
+/*
+!.gitignore
+!index.js
+!package.json
+!chart.js
+!README.md
+!input-logs
+!output-graphs
+!chart-plugins
+!chart-functions
+input-logs/**
+output-graphs/**
+!**/.gitkeep
