@@ -8,6 +8,7 @@
 !output-graphs
 !chart-plugins
 !chart-functions
+!services
 input-logs/**
 output-graphs/**
 !**/.gitkeep
