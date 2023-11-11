@@ -80,14 +80,8 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /\[(.+)\]\[\d+\]LogSquad: .+: Server Tick Rate: (\d+.?\d+)/;
             res = regex.exec(line);
             if (res) {
-                const timePoint = getDateTime(res[ 1 ]).toLocaleString();
+                const timePoint = getDateTime(res[ 1 ]);
                 data.addTimePoint(timePoint);
-
-                data.setNewCounterValue('queueDisconnections', 0)
-                data.setNewCounterValue('hostClosedConnection', 0)
-                data.setNewCounterValue('frags', 0)
-                data.setNewCounterValue('serverMove', 0)
-                data.setNewCounterValue('steamEmptyTicket', 0)
 
                 data.setNewCounterValue('tickRate', Math.round(+res[ 2 ]))
             }
@@ -119,13 +113,13 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /AUTH HANDLER: Sending auth result to user .+ with flag success\? 0/;
             res = regex.exec(line);
             if (res) {
-                data.incrementCounterLast('queueDisconnections', 3);
+                data.incrementFrequencyCounter('queueDisconnections', 3);
             }
             regex = /LogOnline: Warning: STEAM: AUTH: Ticket from user .+ is empty/;
             res = regex.exec(line);
             if (res) {
                 // steamEmptyTicket[ steamEmptyTicket.length - 1 ].y += 1;
-                data.incrementCounter('steamEmptyTicket', 1)
+                data.incrementFrequencyCounter('steamEmptyTicket', 1)
             }
 
             regex = /CloseBunch/
@@ -152,13 +146,13 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /LogOnlineGame: Display: Kicking player: .+ ; Reason = Host closed the connection/;
             res = regex.exec(line);
             if (res) {
-                data.incrementCounterLast('hostClosedConnection', 3)
+                data.incrementFrequencyCounter('hostClosedConnection', 3)
             }
 
             regex = /\[(.+)\].+LogSquad: OnPreLoadMap: Loading map .+\/([^\/]+)$/;
             res = regex.exec(line);
             if (res) {
-                const timePoint = getDateTime(res[ 1 ]).toLocaleString();
+                const timePoint = getDateTime(res[ 1 ]);
                 data.setNewCounterValue('layers', 150, res[ 2 ], timePoint)
             }
 
@@ -171,7 +165,7 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /Frag_C.*DamageInstigator=(BP_PlayerController_C_\d+) /;
             res = regex.exec(line);
             if (res) {
-                data.incrementCounterLast('frags', 1)
+                data.incrementFrequencyCounter('frags', 1)
 
                 const playerController = res[ 1 ];
                 if (!explosionCountersPerController[ playerController ]) explosionCountersPerController[ playerController ] = 0;
@@ -181,7 +175,7 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /ServerMove\: TimeStamp expired.+Character: (.+)/;
             res = regex.exec(line);
             if (res) {
-                data.incrementCounterLast('serverMove', 0.05)
+                data.incrementFrequencyCounter('serverMove', 0.05)
 
                 const playerName = pawnsToPlayerNames[ res[ 1 ] ];
                 const playerController = playerNameToPlayerController[ playerName ]
