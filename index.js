@@ -233,8 +233,8 @@ function drawGraph(logPath, fileNameNoExt) {
             console.log(`\x1b[1m\x1b[34m### STARTING CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             const cheaters = {
                 Explosions: explosionCountersPerController,
-                ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn,
-                Kills: killsPerPlayerController
+                // ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn,
+                // Kills: killsPerPlayerController
             }
 
             for (let cK in cheaters) {
