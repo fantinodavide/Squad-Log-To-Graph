@@ -64,6 +64,8 @@ function drawGraph(logPath, fileNameNoExt) {
         let playerControllerToPlayerName = []
         let playerControllerToSteamID = []
         let killsPerPlayerController = []
+        let connectionTimesByPlayerController = []
+        let disconnectionTimesByPlayerController = []
 
 
         const fileStream = fs.createReadStream(logPath);
@@ -129,18 +131,17 @@ function drawGraph(logPath, fileNameNoExt) {
                 data.incrementCounter('queue', -1)
             }
 
-            regex = /LogSquad: PostLogin: NewPlayer: [^ ]+PlayerController_C/;
+            regex = /LogSquad: PostLogin: NewPlayer:/;
             res = regex.exec(line);
             if (res) {
                 data.incrementCounter('players', 1);
-                playerNameToPlayerController[ res[ 2 ] ] = chainIdToPlayerController[ res[ 1 ] ];
-                playerControllerToPlayerName[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
             }
 
             regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == [0-9]+\. Name: \[UChannel\] ChIndex: [0-9]+, Closing: [0-9]+ \[UNetConnection\] RemoteAddr: (.+):[0-9]+, Name: (Steam|EOSIp)NetConnection_[0-9]+, Driver: GameNetDriver (Steam|EOS)NetDriver_[0-9]+, IsServer: YES, PC: ([^ ]+PlayerController_C_[0-9]+), Owner: [^ ]+PlayerController_C_[0-9]+/
             res = regex.exec(line);
             if (res) {
                 data.incrementCounter('players', -1);
+                disconnectionTimesByPlayerController[ res[ 6 ] ] = getDateTime(res[ 1 ])
             }
 
             regex = /LogOnlineGame: Display: Kicking player: .+ ; Reason = Host closed the connection/;
@@ -162,7 +163,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 data.setNewCounterValue('layers', 150, res[ 2 ])
             }
 
-            regex = /Frag_C.*DamageInstigator=(BP_PlayerController_C_\d+) /;
+            regex = /Frag_C.*DamageInstigator=([^ ]+PlayerController_C_\d+) /;
             res = regex.exec(line);
             if (res) {
                 data.incrementFrequencyCounter('frags', 1)
@@ -196,10 +197,19 @@ function drawGraph(logPath, fileNameNoExt) {
                 pawnsToPlayerNames[ res[ 2 ] ] = res[ 1 ];
             }
 
-            regex = /\[.+\]\[ ?(\d+)\]LogSquad: PostLogin: NewPlayer: BP_PlayerController_C.+PersistentLevel\.(.+)/;
+            regex = /\[(.+)\]\[ ?(\d+)\]LogSquad: PostLogin: NewPlayer: [^ ]+PlayerController_C.+PersistentLevel\.(.+)/;
             res = regex.exec(line);
             if (res) {
-                chainIdToPlayerController[ res[ 1 ] ] = res[ 2 ];
+                chainIdToPlayerController[ res[ 2 ] ] = res[ 3 ];
+                connectionTimesByPlayerController[ res[ 3 ] ] = getDateTime(res[ 1 ])
+            }
+
+            regex = /\[.+\]\[ ?(\d+)\]LogSquad: Player (.+) has been added to Team/;
+            res = regex.exec(line);
+            if (res) {
+                // data.incrementCounter('players', 1);
+                playerNameToPlayerController[ res[ 2 ] ] = chainIdToPlayerController[ res[ 1 ] ];
+                playerControllerToPlayerName[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
             }
 
             regex = /\[.+\]\[ ?(\d+)\]LogEOS: \[Category: LogEOSAntiCheat\] \[AntiCheatServer\] \[RegisterClient-001\].+AccountId: (\d+) IpAddress/;
@@ -233,7 +243,7 @@ function drawGraph(logPath, fileNameNoExt) {
             console.log(`\x1b[1m\x1b[34m### STARTING CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             const cheaters = {
                 Explosions: explosionCountersPerController,
-                // ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn,
+                ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn,
                 // Kills: killsPerPlayerController
             }
 
@@ -262,7 +272,7 @@ function drawGraph(logPath, fileNameNoExt) {
                         playerName = playerControllerToPlayerName[ playerController ];
                         playerSteamID = playerControllerToSteamID[ playerController ]
 
-                        console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
+                        console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m (${connectionTimesByPlayerController[ playerController ].toLocaleString()} - ${disconnectionTimesByPlayerController[ playerController ].toLocaleString()}): \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
                     }
             }
             console.log(`\x1b[1m\x1b[34m#### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
