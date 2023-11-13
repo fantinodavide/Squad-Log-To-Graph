@@ -257,7 +257,7 @@ function drawGraph(logPath, fileNameNoExt) {
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${data.getCounterData('queueDisconnections').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${data.getCounterData('steamEmptyTicket').map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mUnique Client NetSpeed Values:\x1b[0m ${[ ...uniqueClientNetSpeedValues.values() ].join('; ')}`)
-            console.log(`\x1b[1m\x1b[34m### STARTING CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+            console.log(`\x1b[1m\x1b[34m### CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             const cheaters = {
                 Explosions: explosionCountersPerController,
                 ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn,
@@ -295,15 +295,17 @@ function drawGraph(logPath, fileNameNoExt) {
                         console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
                     }
             }
-            console.log(`\x1b[1m\x1b[34m#### SUSPECTED CHEATERS SESSIONS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+            console.log(`\x1b[1m\x1b[34m### SUSPECTED CHEATERS SESSIONS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             for (let playerSteamID of suspectedCheaters) {
+                const playerControllerHistory = steamIDToPlayerController.get(playerSteamID);
+                let playerName = playerControllerToPlayerName[ playerControllerHistory[0] ];
+                console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[33m${playerSteamID} \x1b[31m${playerName}\x1b[0m`)
 
-                for (let playerController of steamIDToPlayerController.get(playerSteamID)) {
-                    let playerName = playerControllerToPlayerName[ playerController ];
+                for (let playerController of playerControllerHistory) {
                     let stringifiedConnectionTime = connectionTimesByPlayerController[ playerController ].toLocaleString();
                     let stringifiedDisconnectionTime = disconnectionTimesByPlayerController[ playerController ].toLocaleString()
 
-                    console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m(${stringifiedConnectionTime} - ${stringifiedDisconnectionTime})\x1b[0m`)
+                    console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[90m ${playerController}\x1b[90m: \x1b[91m(${stringifiedConnectionTime} - ${stringifiedDisconnectionTime})\x1b[0m`)
                 }
             }
             console.log(`\x1b[1m\x1b[34m#### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
