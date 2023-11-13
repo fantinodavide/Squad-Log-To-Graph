@@ -63,6 +63,7 @@ function drawGraph(logPath, fileNameNoExt) {
         let playerNameToPlayerController = []
         let playerControllerToPlayerName = []
         let playerControllerToSteamID = []
+        let steamIDToPlayerController = new Map();
         let killsPerPlayerController = []
         let connectionTimesByPlayerController = []
         let disconnectionTimesByPlayerController = []
@@ -211,11 +212,27 @@ function drawGraph(logPath, fileNameNoExt) {
                 playerNameToPlayerController[ res[ 2 ] ] = chainIdToPlayerController[ res[ 1 ] ];
                 playerControllerToPlayerName[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
             }
+            regex = /\[(.+)\]\[ ?(\d+)\]LogNet: Join succeeded: (.+)/;
+            res = regex.exec(line);
+            if (res) {
+                delete chainIdToPlayerController[ res[ 2 ] ];
+            }
 
             regex = /\[.+\]\[ ?(\d+)\]LogEOS: \[Category: LogEOSAntiCheat\] \[AntiCheatServer\] \[RegisterClient-001\].+AccountId: (\d+) IpAddress/;
             res = regex.exec(line);
             if (res) {
-                playerControllerToSteamID[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
+                const playerController = chainIdToPlayerController[ res[ 1 ] ];
+
+                if (playerController) {
+                    const steamID = res[ 2 ];
+                    playerControllerToSteamID[ playerController ] = steamID;
+
+                    const playerControllerHistory = steamIDToPlayerController.get(steamID);
+                    if (!playerControllerHistory)
+                        steamIDToPlayerController.set(steamID, [ playerController ]);
+                    else
+                        playerControllerHistory.push(playerController)
+                }
             }
 
             regex = /Die\(\): Player:.+from (.+) caused by (.+)/;
@@ -247,6 +264,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 // Kills: killsPerPlayerController
             }
 
+            let suspectedCheaters = [];
             for (let cK in cheaters) {
                 let minCount = 200;
                 switch (cK) {
@@ -270,10 +288,23 @@ function drawGraph(logPath, fileNameNoExt) {
 
                         playerController = playerId
                         playerName = playerControllerToPlayerName[ playerController ];
-                        playerSteamID = playerControllerToSteamID[ playerController ]
+                        playerSteamID = playerControllerToSteamID[ playerController ];
 
-                        console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m (${connectionTimesByPlayerController[ playerController ].toLocaleString()} - ${disconnectionTimesByPlayerController[ playerController ].toLocaleString()}): \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
+                        suspectedCheaters.push(playerSteamID);
+
+                        console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
                     }
+            }
+            console.log(`\x1b[1m\x1b[34m#### SUSPECTED CHEATERS SESSIONS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+            for (let playerSteamID of suspectedCheaters) {
+
+                for (let playerController of steamIDToPlayerController.get(playerSteamID)) {
+                    let playerName = playerControllerToPlayerName[ playerController ];
+                    let stringifiedConnectionTime = connectionTimesByPlayerController[ playerController ].toLocaleString();
+                    let stringifiedDisconnectionTime = disconnectionTimesByPlayerController[ playerController ].toLocaleString()
+
+                    console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m(${stringifiedConnectionTime} - ${stringifiedDisconnectionTime})\x1b[0m`)
+                }
             }
             console.log(`\x1b[1m\x1b[34m#### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
 
