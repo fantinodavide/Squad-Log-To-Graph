@@ -185,6 +185,24 @@ function drawGraph(logPath, fileNameNoExt) {
                 serverMoveTimestampExpiredPerPawn[ playerController ]++;
             }
 
+            regex = /Warning: UNetConnection::Tick/;
+            res = regex.exec(line);
+            if (res) {
+                data.incrementFrequencyCounter('unetConnectionTick', 1)
+            }
+
+            regex = /SetReplicates called on non-initialized actor/;
+            res = regex.exec(line);
+            if (res) {
+                data.incrementFrequencyCounter('nonInitializedActor', 1)
+            }
+
+            regex = /RotorWashEffectListener/;
+            res = regex.exec(line);
+            if (res) {
+                data.incrementFrequencyCounter('rotorWashEffectListener', 1)
+            }
+
             regex = /Client netspeed is (\d+)/;
             res = regex.exec(line);
             if (res) {
@@ -238,6 +256,7 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /Die\(\): Player:.+from (.+) caused by (.+)/;
             res = regex.exec(line);
             if (res) {
+                data.incrementFrequencyCounter('playerDeaths', 0.1)
                 let playerController = res[ 1 ]
                 if (!playerController || playerController == 'nullptr') {
                     playerController = playerNameToPlayerController[ pawnsToPlayerNames[ res[ 2 ] ] ]
@@ -272,7 +291,7 @@ function drawGraph(logPath, fileNameNoExt) {
                         minCount = 200;
                         break;
                     case 'ServerMoveTimeStampExpired':
-                        minCount = 5000;
+                        minCount = 3000;
                         break;
                     case 'Kills':
                         minCount = 100;
@@ -298,7 +317,7 @@ function drawGraph(logPath, fileNameNoExt) {
             console.log(`\x1b[1m\x1b[34m### SUSPECTED CHEATERS SESSIONS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             for (let playerSteamID of suspectedCheaters) {
                 const playerControllerHistory = steamIDToPlayerController.get(playerSteamID);
-                let playerName = playerControllerToPlayerName[ playerControllerHistory[0] ];
+                let playerName = playerControllerToPlayerName[ playerControllerHistory[ 0 ] ];
                 console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[33m${playerSteamID} \x1b[31m${playerName}\x1b[0m`)
 
                 for (let playerController of playerControllerHistory) {
@@ -399,6 +418,38 @@ function drawGraph(logPath, fileNameNoExt) {
                             data: data.getCounterData('clientNetSpeed'),
                             backgroundColor: "#397060",
                             borderColor: "#397060"
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'UNetConnectionTick',
+                            data: data.getCounterData('unetConnectionTick'),
+                            backgroundColor: "#3b0187",
+                            borderColor: "#3b0187"
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'Non-Initialized Actors',
+                            data: data.getCounterData('nonInitializedActor'),
+                            backgroundColor: "#047070",
+                            borderColor: "#047070"
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'RotorWashEffectListener',
+                            data: data.getCounterData('rotorWashEffectListener'),
+                            backgroundColor: "#878401",
+                            borderColor: "#878401"
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'Deaths/10',
+                            data: data.getCounterData('playerDeaths'),
+                            backgroundColor: "#bc0303",
+                            borderColor: "#bc0303"
                         },
                     ]
                 },
