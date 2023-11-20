@@ -334,7 +334,7 @@ function drawGraph(logPath, fileNameNoExt) {
                             type: 'bar',
                             label: 'Layers',
                             data: data.getCounterData('layers'),
-                            barThickness: 10,
+                            barThickness: 5,
                             borderWidth: {
                                 right: "100px",
                             },
@@ -497,8 +497,6 @@ function drawGraph(logPath, fileNameNoExt) {
                 }
             }
             console.log(`\x1b[1m\x1b[34m#### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
-
-            console.log(data.getCounterData('playerDeaths'))
 
             resolve(chartCanvas);
         })
