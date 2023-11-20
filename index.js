@@ -36,6 +36,12 @@ async function main() {
         const fileNameNoExt = logFile.replace(/\.[^\.]+$/, '');
         const outputPath = path.join(OUPUT_DIR, `${fileNameNoExt}.png`)
 
+        try {
+            await fs.promises.access(logPath, fs.constants.R_OK)
+        } catch (error) {
+            console.log(`\n\x1b[1m\x1b[34mUnable to read: \x1b[32m${fileNameNoExt}\x1b[0m`)
+        }
+
         const graph = await drawGraph(logPath, fileNameNoExt)
 
         fs.writeFileSync(outputPath, graph.toBuffer("image/png"))
@@ -270,65 +276,6 @@ function drawGraph(logPath, fileNameNoExt) {
             const serverUptimeMs = (+data.timePoints[ data.timePoints.length - 1 ].time - +data.timePoints[ 0 ].time)
             const serverUptimeHours = (serverUptimeMs / 1000 / 60 / 60).toFixed(1);
 
-            console.log(`\n\x1b[1m\x1b[34m### SERVER STAT REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
-            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Uptime:\x1b[0m ${serverUptimeHours} h`)
-            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mHost Closed Connections:\x1b[0m ${data.getCounterData('hostClosedConnection').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
-            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${data.getCounterData('queueDisconnections').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
-            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${data.getCounterData('steamEmptyTicket').map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
-            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mUnique Client NetSpeed Values:\x1b[0m ${[ ...uniqueClientNetSpeedValues.values() ].join('; ')}`)
-            console.log(`\x1b[1m\x1b[34m### CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
-            const cheaters = {
-                Explosions: explosionCountersPerController,
-                ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn,
-                // Kills: killsPerPlayerController
-            }
-
-            let suspectedCheaters = [];
-            for (let cK in cheaters) {
-                let minCount = 200;
-                switch (cK) {
-                    case 'Explosions':
-                        minCount = 200;
-                        break;
-                    case 'ServerMoveTimeStampExpired':
-                        minCount = 3000;
-                        break;
-                    case 'Kills':
-                        minCount = 100;
-                        break;
-                }
-
-                console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31m${cK.toUpperCase()}\x1b[0m`)
-                for (let playerId in cheaters[ cK ])
-                    if (cheaters[ cK ][ playerId ] > minCount) {
-                        let playerName;
-                        let playerSteamID;
-                        let playerController;
-
-                        playerController = playerId
-                        playerName = playerControllerToPlayerName[ playerController ];
-                        playerSteamID = playerControllerToSteamID[ playerController ];
-
-                        suspectedCheaters.push(playerSteamID);
-
-                        console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
-                    }
-            }
-            console.log(`\x1b[1m\x1b[34m### SUSPECTED CHEATERS SESSIONS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
-            for (let playerSteamID of suspectedCheaters) {
-                const playerControllerHistory = steamIDToPlayerController.get(playerSteamID);
-                let playerName = playerControllerToPlayerName[ playerControllerHistory[ 0 ] ];
-                console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[33m${playerSteamID} \x1b[31m${playerName}\x1b[0m`)
-
-                for (let playerController of playerControllerHistory) {
-                    let stringifiedConnectionTime = connectionTimesByPlayerController[ playerController ].toLocaleString();
-                    let stringifiedDisconnectionTime = disconnectionTimesByPlayerController[ playerController ].toLocaleString()
-
-                    console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[90m ${playerController}\x1b[90m: \x1b[91m(${stringifiedConnectionTime} - ${stringifiedDisconnectionTime})\x1b[0m`)
-                }
-            }
-            console.log(`\x1b[1m\x1b[34m#### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
-
             let canvasWidth = Math.max(Math.min(serverUptimeMs / 15000, 30000), 4000);
             let canvasHeight = 2000;
 
@@ -387,7 +334,7 @@ function drawGraph(logPath, fileNameNoExt) {
                             type: 'bar',
                             label: 'Layers',
                             data: data.getCounterData('layers'),
-                            barThickness: 5,
+                            barThickness: 10,
                             borderWidth: {
                                 right: "100px",
                             },
@@ -398,54 +345,54 @@ function drawGraph(logPath, fileNameNoExt) {
                         {
                             pointStyle: 'circle',
                             pointRadius: 0,
-                            label: 'Explosions',
-                            data: data.getCounterData('frags'),
-                            backgroundColor: "#ba01ba",
-                            borderColor: "#ba01ba"
-                        },
-                        {
-                            pointStyle: 'circle',
-                            pointRadius: 0,
-                            label: 'ServerMoveTSExp/20',
-                            data: data.getCounterData('serverMove'),
-                            backgroundColor: "#8888FF",
-                            borderColor: "#8888FF"
-                        },
-                        {
-                            pointStyle: 'circle',
-                            pointRadius: 0,
                             label: 'ClientNetSpeed/1000',
                             data: data.getCounterData('clientNetSpeed'),
                             backgroundColor: "#397060",
                             borderColor: "#397060"
                         },
                         {
-                            pointStyle: 'circle',
-                            pointRadius: 0,
+                            type: 'bar',
+                            barThickness: 5,
+                            label: 'Explosions',
+                            data: data.getCounterData('frags'),
+                            backgroundColor: "#ba01ba",
+                            borderColor: "#ba01ba"
+                        },
+                        {
+                            type: 'bar',
+                            barThickness: 5,
+                            label: 'ServerMoveTSExp/20',
+                            data: data.getCounterData('serverMove'),
+                            backgroundColor: "#8888FF",
+                            borderColor: "#8888FF"
+                        },
+                        {
+                            type: 'bar',
+                            barThickness: 5,
                             label: 'UNetConnectionTick',
                             data: data.getCounterData('unetConnectionTick'),
                             backgroundColor: "#3b0187",
                             borderColor: "#3b0187"
                         },
                         {
-                            pointStyle: 'circle',
-                            pointRadius: 0,
+                            type: 'bar',
+                            barThickness: 5,
                             label: 'Non-Initialized Actors',
                             data: data.getCounterData('nonInitializedActor'),
-                            backgroundColor: "#047070",
-                            borderColor: "#047070"
+                            backgroundColor: "#460470",
+                            borderColor: "#460470"
                         },
                         {
-                            pointStyle: 'circle',
-                            pointRadius: 0,
+                            type: 'bar',
+                            barThickness: 5,
                             label: 'RotorWashEffectListener',
                             data: data.getCounterData('rotorWashEffectListener'),
-                            backgroundColor: "#878401",
-                            borderColor: "#878401"
+                            backgroundColor: "#68bf3d",
+                            borderColor: "#68bf3d"
                         },
                         {
-                            pointStyle: 'circle',
-                            pointRadius: 0,
+                            type: 'bar',
+                            barThickness: 5,
                             label: 'Deaths/10',
                             data: data.getCounterData('playerDeaths'),
                             backgroundColor: "#bc0303",
@@ -490,6 +437,68 @@ function drawGraph(logPath, fileNameNoExt) {
                     serverCPUPlugin(serverCPU, canvasWidth, canvasHeight)
                 ]
             });
+
+            console.log(`\n\x1b[1m\x1b[34m### SERVER STAT REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Uptime:\x1b[0m ${serverUptimeHours} h`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mHost Closed Connections:\x1b[0m ${data.getCounterData('hostClosedConnection').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${data.getCounterData('queueDisconnections').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${data.getCounterData('steamEmptyTicket').map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mUnique Client NetSpeed Values:\x1b[0m ${[ ...uniqueClientNetSpeedValues.values() ].join('; ')}`)
+            console.log(`\x1b[1m\x1b[34m### CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+            const cheaters = {
+                Explosions: explosionCountersPerController,
+                ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerPawn,
+                // Kills: killsPerPlayerController
+            }
+
+            let suspectedCheaters = [];
+            for (let cK in cheaters) {
+                let minCount = 200;
+                switch (cK) {
+                    case 'Explosions':
+                        minCount = 200;
+                        break;
+                    case 'ServerMoveTimeStampExpired':
+                        minCount = 3000;
+                        break;
+                    case 'Kills':
+                        minCount = 100;
+                        break;
+                }
+
+                console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31m${cK.toUpperCase()}\x1b[0m`)
+                for (let playerId in cheaters[ cK ])
+                    if (cheaters[ cK ][ playerId ] > minCount) {
+                        let playerName;
+                        let playerSteamID;
+                        let playerController;
+
+                        playerController = playerId
+                        playerName = playerControllerToPlayerName[ playerController ];
+                        playerSteamID = playerControllerToSteamID[ playerController ];
+
+                        suspectedCheaters.push(playerSteamID);
+
+                        console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
+                    }
+            }
+            console.log(`\x1b[1m\x1b[34m### SUSPECTED CHEATERS SESSIONS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+            for (let playerSteamID of suspectedCheaters) {
+                const playerControllerHistory = steamIDToPlayerController.get(playerSteamID);
+                if (!playerControllerHistory) continue;
+                let playerName = playerControllerToPlayerName[ playerControllerHistory[ 0 ] ];
+                console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[33m${playerSteamID} \x1b[31m${playerName}\x1b[0m`)
+
+                for (let playerController of playerControllerHistory) {
+                    let stringifiedConnectionTime = connectionTimesByPlayerController[ playerController ].toLocaleString();
+                    let stringifiedDisconnectionTime = disconnectionTimesByPlayerController[ playerController ].toLocaleString()
+
+                    console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[90m ${playerController}\x1b[90m: \x1b[91m(${stringifiedConnectionTime} - ${stringifiedDisconnectionTime})\x1b[0m`)
+                }
+            }
+            console.log(`\x1b[1m\x1b[34m#### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+
+            console.log(data.getCounterData('playerDeaths'))
 
             resolve(chartCanvas);
         })
