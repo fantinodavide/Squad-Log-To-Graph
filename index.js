@@ -335,9 +335,6 @@ function drawGraph(logPath, fileNameNoExt) {
                             label: 'Layers',
                             data: data.getCounterData('layers'),
                             barThickness: 5,
-                            borderWidth: {
-                                right: "100px",
-                            },
                             borderSkipped: false,
                             backgroundColor: "#FFFFFF22",
                             borderColor: "#FFFFFF22"
@@ -351,48 +348,48 @@ function drawGraph(logPath, fileNameNoExt) {
                             borderColor: "#397060"
                         },
                         {
-                            type: 'bar',
-                            barThickness: 5,
+                            pointStyle: 'circle',
+                            pointRadius: 0,
                             label: 'Explosions',
                             data: data.getCounterData('frags'),
                             backgroundColor: "#ba01ba",
                             borderColor: "#ba01ba"
                         },
                         {
-                            type: 'bar',
-                            barThickness: 5,
+                            pointStyle: 'circle',
+                            pointRadius: 0,
                             label: 'ServerMoveTSExp/20',
                             data: data.getCounterData('serverMove'),
                             backgroundColor: "#8888FF",
                             borderColor: "#8888FF"
                         },
                         {
-                            type: 'bar',
-                            barThickness: 5,
+                            pointStyle: 'circle',
+                            pointRadius: 0,
                             label: 'UNetConnectionTick',
                             data: data.getCounterData('unetConnectionTick'),
                             backgroundColor: "#3b0187",
                             borderColor: "#3b0187"
                         },
                         {
-                            type: 'bar',
-                            barThickness: 5,
+                            pointStyle: 'circle',
+                            pointRadius: 0,
                             label: 'Non-Initialized Actors',
                             data: data.getCounterData('nonInitializedActor'),
                             backgroundColor: "#460470",
                             borderColor: "#460470"
                         },
                         {
-                            type: 'bar',
-                            barThickness: 5,
+                            pointStyle: 'circle',
+                            pointRadius: 0,
                             label: 'RotorWashEffectListener',
                             data: data.getCounterData('rotorWashEffectListener'),
                             backgroundColor: "#68bf3d",
                             borderColor: "#68bf3d"
                         },
                         {
-                            type: 'bar',
-                            barThickness: 5,
+                            pointStyle: 'circle',
+                            pointRadius: 0,
                             label: 'Deaths/10',
                             data: data.getCounterData('playerDeaths'),
                             backgroundColor: "#bc0303",
