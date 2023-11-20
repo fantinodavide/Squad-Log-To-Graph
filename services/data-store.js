@@ -5,7 +5,7 @@ export default class DataStore {
         this.counters = new Map();
     }
 
-    incrementCounter(key, incrementer, time = null, isFrequencyCounter = false) {
+    incrementCounter(key, incrementer, time = null) {
         const counter = this.counters.get(key);
         const value = +(counter?.length > 0 ? counter[ counter.length - 1 ].y : 0) + incrementer;
         return this.setNewCounterValue(key, value, null, time)
@@ -37,7 +37,7 @@ export default class DataStore {
     }
 
     setNewCounterValue(key, value, label, time = null, skipDuplication = false) {
-        if (time && +time > 0) time = this.addTimePoint(new Date(time));
+        if (time && +time > 0) time = this.addTimePoint(time instanceof Date ? time : new Date(time));
         else time = this.getLastTimePoint();
 
         const oldCounter = this.counters.get(key);
