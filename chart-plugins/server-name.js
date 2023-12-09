@@ -1,10 +1,10 @@
 export default function (serverName) {
+    if (!serverName) serverName = ""
     return {
         id: 'layerText',
         afterDatasetDraw(chart, args, pluginOptions) {
             const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
             const { chartArea } = chart;
-            if (args.index != 3) return;
 
             const chartMaxY = chart.scales.y.max;
             data.datasets[ args.index ].data.forEach((dataPoint, index) => {
