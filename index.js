@@ -51,12 +51,14 @@ async function main() {
 }
 
 function drawGraph(logPath, fileNameNoExt) {
+    const startTime = Date.now();
     return new Promise((resolve, reject) => {
         const data = new DataStore();
 
         let serverName = '';
         let serverVersion = '';
         let serverCPU = '';
+        let serverVersionMajor = 0;
 
         let maxQueue = 0;
 
@@ -73,7 +75,7 @@ function drawGraph(logPath, fileNameNoExt) {
         let killsPerPlayerController = []
         let connectionTimesByPlayerController = []
         let disconnectionTimesByPlayerController = []
-
+        let playerControllerToNetspeed = []
 
         const fileStream = fs.createReadStream(logPath);
         const rl = readline.createInterface({
@@ -93,24 +95,29 @@ function drawGraph(logPath, fileNameNoExt) {
                 data.addTimePoint(timePoint);
 
                 data.setNewCounterValue('tickRate', Math.round(+res[ 2 ]))
+                return;
             }
 
             regex = / ServerName: \'(.+)\' RegisterTimeout:/
             res = regex.exec(line);
             if (res) {
                 serverName = res[ 1 ];
+                return;
             }
 
             regex = /LogInit: OS: .+, CPU: (.+), GPU:/
             res = regex.exec(line);
             if (res) {
                 serverCPU = res[ 1 ];
+                return;
             }
 
             regex = /LogNetVersion: Set ProjectVersion to (V.+)\. Version/
             res = regex.exec(line);
             if (res) {
                 serverVersion = res[ 1 ];
+                serverVersionMajor = +serverVersion.substring(1, 2)
+                return;
             }
 
             regex = /NotifyAcceptingChannel/;
@@ -123,12 +130,14 @@ function drawGraph(logPath, fileNameNoExt) {
             res = regex.exec(line);
             if (res) {
                 data.incrementFrequencyCounter('queueDisconnections', 3);
+                return;
             }
             regex = /LogOnline: Warning: STEAM: AUTH: Ticket from user .+ is empty/;
             res = regex.exec(line);
             if (res) {
                 // steamEmptyTicket[ steamEmptyTicket.length - 1 ].y += 1;
                 data.incrementFrequencyCounter('steamEmptyTicket', 1)
+                return;
             }
 
             regex = /CloseBunch/
@@ -149,12 +158,14 @@ function drawGraph(logPath, fileNameNoExt) {
             if (res) {
                 data.incrementCounter('players', -1);
                 disconnectionTimesByPlayerController[ res[ 6 ] ] = getDateTime(res[ 1 ])
+                return;
             }
 
             regex = /LogOnlineGame: Display: Kicking player: .+ ; Reason = Host closed the connection/;
             res = regex.exec(line);
             if (res) {
                 data.incrementFrequencyCounter('hostClosedConnection', 3)
+                return;
             }
 
             regex = /\[(.+)\].+LogSquad: OnPreLoadMap: Loading map .+\/([^\/]+)$/;
@@ -162,12 +173,14 @@ function drawGraph(logPath, fileNameNoExt) {
             if (res) {
                 const timePoint = getDateTime(res[ 1 ]);
                 data.setNewCounterValue('layers', 150, res[ 2 ], timePoint)
+                return;
             }
 
             regex = /\[(.+)\]\[\d+].*LogWorld: SeamlessTravel to: .+\/([^\/]+)$/;
             res = regex.exec(line);
             if (res) {
                 data.setNewCounterValue('layers', 150, res[ 2 ])
+                return;
             }
 
             regex = /Frag_C.*DamageInstigator=([^ ]+PlayerController_C_\d+) /;
@@ -178,6 +191,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 const playerController = res[ 1 ];
                 if (!explosionCountersPerController[ playerController ]) explosionCountersPerController[ playerController ] = 0;
                 explosionCountersPerController[ playerController ]++;
+                return;
             }
 
             regex = /ServerMove\: TimeStamp expired: ([\d\.]+), CurrentTimeStamp: ([\d\.]+), Character: (.+)/;
@@ -192,39 +206,49 @@ function drawGraph(logPath, fileNameNoExt) {
                 const playerController = playerNameToPlayerController[ playerName ]
                 if (delta > 100) {
                     if (!serverMoveTimestampExpiredPerController[ playerController ]) {
-                        // console.log("Found sus player", playerName, res[ 3 ])
+                        console.log("Found sus player", playerName, res[ 3 ])
                         serverMoveTimestampExpiredPerController[ playerController ] = 0;
                     }
                     serverMoveTimestampExpiredPerController[ playerController ]++;
                 }
+                return;
             }
 
             regex = /Warning: UNetConnection::Tick/;
             res = regex.exec(line);
             if (res) {
                 data.incrementFrequencyCounter('unetConnectionTick', 1)
+                return;
             }
 
             regex = /SetReplicates called on non-initialized actor/;
             res = regex.exec(line);
             if (res) {
                 data.incrementFrequencyCounter('nonInitializedActor', 1)
+                return;
             }
 
             regex = /RotorWashEffectListener/;
             res = regex.exec(line);
             if (res) {
                 data.incrementFrequencyCounter('rotorWashEffectListener', 1)
+                return;
             }
 
-            regex = /Client netspeed is (\d+)/;
+            regex = /\[(.+)\]\[ ?(\d+)\].+Client netspeed is (\d+)/;
             res = regex.exec(line);
             if (res) {
-                data.setNewCounterValue('clientNetSpeed', (+res[ 1 ]) / 1000)
-                uniqueClientNetSpeedValues.add(+res[ 1 ]);
+                data.setNewCounterValue('clientNetSpeed', (+res[ 3 ]) / 1000)
+                uniqueClientNetSpeedValues.add(+res[ 3 ]);
+                const playerController = chainIdToPlayerController[ res[ 2 ] ]
+                if (playerController) {
+                    if (!playerControllerToNetspeed[ playerController ]) playerControllerToNetspeed[ playerController ] = []
+                    playerControllerToNetspeed[ playerController ].push(+res[ 3 ])
+                }
+                return;
             }
 
-            if (+serverVersion.substring(1, 2) < 7) {
+            if (serverVersion < 7) {
                 regex = /OnPossess\(\): PC=(.+) Pawn=(.+) FullPath/;
                 res = regex.exec(line);
                 if (res) {
@@ -269,11 +293,13 @@ function drawGraph(logPath, fileNameNoExt) {
                 // data.incrementCounter('players', 1);
                 playerNameToPlayerController[ res[ 2 ] ] = chainIdToPlayerController[ res[ 1 ] ];
                 playerControllerToPlayerName[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
+                return;
             }
             regex = /\[(.+)\]\[ ?(\d+)\]LogNet: Join succeeded: (.+)/;
             res = regex.exec(line);
             if (res) {
                 delete chainIdToPlayerController[ res[ 2 ] ];
+                return;
             }
 
             regex = /\[.+\]\[ ?(\d+)\]LogEOS: \[Category: LogEOSAntiCheat\] \[AntiCheatServer\] \[RegisterClient-001\].+AccountId: (\d+) IpAddress/;
@@ -291,6 +317,7 @@ function drawGraph(logPath, fileNameNoExt) {
                     else if (!playerControllerHistory.includes(playerController))
                         playerControllerHistory.push(playerController)
                 }
+                return;
             }
 
             regex = /Die\(\): Player:.+from (.+) caused by (.+)/;
@@ -303,42 +330,49 @@ function drawGraph(logPath, fileNameNoExt) {
                 }
                 if (!killsPerPlayerController[ playerController ]) killsPerPlayerController[ playerController ] = 0;
                 killsPerPlayerController[ playerController ]++;
+                return;
             }
 
             regex = /LogSquadVoiceChannel: Warning: Unable to find channel for packet sender/;
             res = regex.exec(line);
             if (res) {
                 data.incrementFrequencyCounter('unableToFindVoiceChannel', 0.005)
+                return;
             }
 
             regex = /DealDamage was called but there was no valid actor or component/;
             res = regex.exec(line);
             if (res) {
                 data.incrementFrequencyCounter('dealDamageOnInvalidActorOrComponent', 1)
+                return;
             }
 
             regex = /TraceAndMessageClient\(\): SQVehicleSeat::TakeDamage/;
             res = regex.exec(line);
             if (res) {
                 data.incrementFrequencyCounter('SQVehicleSeatTakeDamage', 1)
+                return;
             }
 
             regex = /LogSquadCommon: SQCommonStatics Check Permissions/;
             res = regex.exec(line);
             if (res) {
                 data.incrementFrequencyCounter('SQCommonStaticsCheckPermissions', 1)
+                return;
             }
 
             regex = /Updated suppression multiplier/;
             res = regex.exec(line);
             if (res) {
                 data.incrementFrequencyCounter('updatedSuppressionMultiplier', 1)
+                return;
             }
 
             regex = /PlayerWounded_Implementation\(\): Driver Assist Points:/;
             res = regex.exec(line);
             if (res) {
                 data.incrementFrequencyCounter('driverAssistPoints', 1)
+                return;
             }
         })
 
@@ -513,6 +547,9 @@ function drawGraph(logPath, fileNameNoExt) {
                 ]
             });
 
+            const endTime = Date.now();
+            const analysisDuration = ((endTime - startTime) / 1000).toFixed(1)
+
             console.log(`\n\x1b[1m\x1b[34m### SERVER STAT REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Name:\x1b[0m ${serverName}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer CPU:\x1b[0m ${serverCPU}`)
@@ -522,10 +559,12 @@ function drawGraph(logPath, fileNameNoExt) {
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${data.getCounterData('queueDisconnections').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${data.getCounterData('steamEmptyTicket').map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mUnique Client NetSpeed Values:\x1b[0m ${[ ...uniqueClientNetSpeedValues.values() ].join('; ')}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mAnalysis duration:\x1b[0m ${analysisDuration}`)
             console.log(`\x1b[1m\x1b[34m### CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             const cheaters = {
                 Explosions: explosionCountersPerController,
                 ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerController,
+                // ClientNetSpeed: playerControllerToNetspeed
                 // Kills: killsPerPlayerController
             }
 
@@ -542,11 +581,15 @@ function drawGraph(logPath, fileNameNoExt) {
                     case 'Kills':
                         minCount = 100;
                         break;
+                    case 'ClientNetSpeed':
+                        minCount = 1800;
+                        break;
                 }
 
                 console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31m${cK.toUpperCase()}\x1b[0m`)
-                for (let playerId in cheaters[ cK ])
-                    if (cheaters[ cK ][ playerId ] > minCount) {
+                for (let playerId in cheaters[ cK ]) {
+                    const referenceValue = cheaters[ cK ][ playerId ]
+                    if ((typeof referenceValue === "number" && referenceValue > minCount) || (typeof referenceValue === "object" && referenceValue.find(v => v > minCount))) {
                         let playerName;
                         let playerSteamID;
                         let playerController;
@@ -559,6 +602,7 @@ function drawGraph(logPath, fileNameNoExt) {
 
                         console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
                     }
+                }
             }
             console.log(`\x1b[1m\x1b[34m### SUSPECTED CHEATERS SESSIONS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             for (let playerSteamID of suspectedCheaters) {
