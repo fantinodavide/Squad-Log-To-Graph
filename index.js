@@ -59,6 +59,7 @@ function drawGraph(logPath, fileNameNoExt) {
         let serverVersion = '';
         let serverCPU = '';
         let serverVersionMajor = 0;
+        let serverOS = '';
 
         let maxQueue = 0;
 
@@ -374,6 +375,13 @@ function drawGraph(logPath, fileNameNoExt) {
                 data.incrementFrequencyCounter('driverAssistPoints', 1)
                 return;
             }
+
+            regex = /Base Directory:.+\/([^\/]+)\/$/;
+            res = regex.exec(line);
+            if (res) {
+                serverOS = res[ 1 ];
+                return;
+            }
         })
 
         rl.on("close", () => {
@@ -555,6 +563,7 @@ function drawGraph(logPath, fileNameNoExt) {
             console.log(`\n\x1b[1m\x1b[34m### SERVER STAT REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Name:\x1b[0m ${serverName}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer CPU:\x1b[0m ${serverCPU}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer OS:\x1b[0m ${serverOS}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSquad Version:\x1b[0m ${serverVersion}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Uptime:\x1b[0m ${serverUptimeHours} h`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mHost Closed Connections:\x1b[0m ${data.getCounterData('hostClosedConnection').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
