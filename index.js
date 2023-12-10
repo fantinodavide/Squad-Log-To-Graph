@@ -205,7 +205,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 const delta = currentTimeStamp - timestampExpired
                 const playerName = pawnsToPlayerNames[ res[ 3 ] ];
                 const playerController = playerNameToPlayerController[ playerName ]
-                if (delta > 20) {
+                if (delta > 150) {
                     if (!serverMoveTimestampExpiredPerController[ playerController ]) {
                         // console.log("Found sus player", playerName, res[ 3 ])
                         serverMoveTimestampExpiredPerController[ playerController ] = 0;
@@ -588,7 +588,7 @@ function drawGraph(logPath, fileNameNoExt) {
                         minCount = 200;
                         break;
                     case 'ServerMoveTimeStampExpired':
-                        minCount = 1000;
+                        minCount = 3000;
                         break;
                     case 'Kills':
                         minCount = 100;
@@ -627,7 +627,7 @@ function drawGraph(logPath, fileNameNoExt) {
                     let stringifiedConnectionTime = connectionTimesByPlayerController[ playerController ].toLocaleString();
                     let stringifiedDisconnectionTime = disconnectionTimesByPlayerController[ playerController ]?.toLocaleString() || "N/A"
 
-                    console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[90m ${playerController}\x1b[90m: \x1b[91m(${stringifiedConnectionTime} - ${stringifiedDisconnectionTime})\x1b[0m`)
+                    console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[90m ${playerController}\x1b[90m: \x1b[91m${killsPerPlayerController[ playerController ] || 0} kills - (${stringifiedConnectionTime} - ${stringifiedDisconnectionTime})\x1b[0m`)
                 }
             }
             console.log(`\x1b[1m\x1b[34m#### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
