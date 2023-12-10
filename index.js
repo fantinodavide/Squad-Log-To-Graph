@@ -248,7 +248,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 return;
             }
 
-            if (serverVersion < 7) {
+            if (serverVersionMajor < 7) {
                 regex = /OnPossess\(\): PC=(.+) Pawn=(.+) FullPath/;
                 res = regex.exec(line);
                 if (res) {
