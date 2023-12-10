@@ -204,9 +204,9 @@ function drawGraph(logPath, fileNameNoExt) {
                 const delta = currentTimeStamp - timestampExpired
                 const playerName = pawnsToPlayerNames[ res[ 3 ] ];
                 const playerController = playerNameToPlayerController[ playerName ]
-                if (delta > 100) {
+                if (delta > 20) {
                     if (!serverMoveTimestampExpiredPerController[ playerController ]) {
-                        console.log("Found sus player", playerName, res[ 3 ])
+                        // console.log("Found sus player", playerName, res[ 3 ])
                         serverMoveTimestampExpiredPerController[ playerController ] = 0;
                     }
                     serverMoveTimestampExpiredPerController[ playerController ]++;
