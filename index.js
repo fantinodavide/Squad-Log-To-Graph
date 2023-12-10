@@ -55,13 +55,13 @@ function drawGraph(logPath, fileNameNoExt) {
     return new Promise((resolve, reject) => {
         const data = new DataStore();
 
-        let serverName = '';
-        let serverVersion = '';
-        let serverCPU = '';
-        let serverVersionMajor = 0;
-        let serverOS = '';
+        data.setVar('ServerName', '')
+        data.setVar('ServerVersion', '')
+        data.setVar('ServerCPU', '')
+        data.setVar('ServerVersionMajor', '')
+        data.setVar('ServerOS', '')
 
-        let maxQueue = 0;
+        data.setVar('MaxQueue', 0)
 
         let uniqueClientNetSpeedValues = new Set();
 
@@ -102,22 +102,23 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = / ServerName: \'(.+)\' RegisterTimeout:/
             res = regex.exec(line);
             if (res) {
-                serverName = res[ 1 ];
+                data.setVar('ServerName', res[ 1 ]);
                 return;
             }
 
             regex = /LogInit: OS: .+, CPU: (.+), GPU:/
             res = regex.exec(line);
             if (res) {
-                serverCPU = res[ 1 ];
+                data.setVar('ServerCPU', res[ 1 ]);
                 return;
             }
 
             regex = /LogNetVersion: Set ProjectVersion to (V.+)\. Version/
             res = regex.exec(line);
             if (res) {
-                serverVersion = res[ 1 ];
-                serverVersionMajor = +serverVersion.substring(1, 2)
+                let serverVersion = res[ 1 ];
+                data.setVar('ServerVersion', serverVersion)
+                data.setVar('ServerVersionMajor', +serverVersion.substring(1, 2))
                 return;
             }
 
@@ -125,7 +126,8 @@ function drawGraph(logPath, fileNameNoExt) {
             res = regex.exec(line);
             if (res) {
                 const val = data.incrementCounter('queue', 1).y;
-                if (val > maxQueue) maxQueue = val;
+                const maxQueue = data.getVar('MaxQueue')
+                if (val > maxQueue) data.setVar('MaxQueue', val)
             }
             regex = /AUTH HANDLER: Sending auth result to user .+ with flag success\? 0/;
             res = regex.exec(line);
@@ -249,7 +251,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 return;
             }
 
-            if (serverVersionMajor < 7) {
+            if (data.getVar('ServerVersionMajor') < 7) {
                 regex = /OnPossess\(\): PC=(.+) Pawn=(.+) FullPath/;
                 res = regex.exec(line);
                 if (res) {
@@ -379,7 +381,7 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /Base Directory:.+\/([^\/]+)\/$/;
             res = regex.exec(line);
             if (res) {
-                serverOS = res[ 1 ];
+                data.setVar('ServerOS', res[ 1 ])
                 return;
             }
         })
@@ -537,7 +539,7 @@ function drawGraph(logPath, fileNameNoExt) {
                         },
                         y: {
                             min: 0,
-                            max: Math.max(100, maxQueue),
+                            max: Math.max(100, data.getVar('MaxQueue')),
                             ticks: {
                                 stepSize: 5
                             },
@@ -550,9 +552,9 @@ function drawGraph(logPath, fileNameNoExt) {
                 plugins: [
                     chartBackgroundPlugin(!!+process.env.ENABLE_TPS_BACKGROUND),
                     layerTextPlugin(),
-                    serverNamePlugin(serverName),
-                    serverVersionPlugin(serverVersion, canvasWidth, canvasHeight),
-                    serverCPUPlugin(serverCPU, canvasWidth, canvasHeight)
+                    serverNamePlugin(data.getVar('ServerName')),
+                    serverVersionPlugin(data.getVar('ServerVersion'), canvasWidth, canvasHeight),
+                    serverCPUPlugin(data.getVar('ServerCPU'), canvasWidth, canvasHeight)
                 ]
             });
 
@@ -561,10 +563,10 @@ function drawGraph(logPath, fileNameNoExt) {
             const totalDuration = ((endTime - startTime) / 1000).toFixed(1)
 
             console.log(`\n\x1b[1m\x1b[34m### SERVER STAT REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
-            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Name:\x1b[0m ${serverName}`)
-            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer CPU:\x1b[0m ${serverCPU}`)
-            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer OS:\x1b[0m ${serverOS}`)
-            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSquad Version:\x1b[0m ${serverVersion}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Name:\x1b[0m ${data.getVar('ServerName')}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer CPU:\x1b[0m ${data.getVar('ServerCPU')}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer OS:\x1b[0m ${data.getVar('ServerOS')}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSquad Version:\x1b[0m ${data.getVar('ServerVersion')}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Uptime:\x1b[0m ${serverUptimeHours} h`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mHost Closed Connections:\x1b[0m ${data.getCounterData('hostClosedConnection').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${data.getCounterData('queueDisconnections').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
