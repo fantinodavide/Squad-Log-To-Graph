@@ -630,7 +630,7 @@ function drawGraph(logPath, fileNameNoExt) {
                     console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[90m ${playerController}\x1b[90m: \x1b[91m${killsPerPlayerController[ playerController ] || 0} kills - (${stringifiedConnectionTime} - ${stringifiedDisconnectionTime})\x1b[0m`)
                 }
             }
-            console.log(`\x1b[1m\x1b[34m#### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+            console.log(`\x1b[1m\x1b[34m### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
 
             resolve(chartCanvas);
         })
