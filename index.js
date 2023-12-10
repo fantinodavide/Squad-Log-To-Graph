@@ -18,6 +18,9 @@ import tpsColorGradientBackground from './chart-functions/tps-color-gradient-bac
 const INPUT_DIR = 'input-logs';
 const OUPUT_DIR = 'output-graphs';
 
+const ENABLE_TSEXPIRED_DELTA_CHECK = true;
+const PLAYER_CONTROLLER_FILTER = "" // To move to a better place. Set to a real player controller value like BP_PlayerController_C_2146648925 to filter the graph (partially implemented)
+
 async function main() {
     const files = fs.readdirSync(INPUT_DIR).filter(f => f.endsWith('.log'));
     console.log(`Logs found (${files.length}):\n > ${files.join(`\n > `)}`);
@@ -190,9 +193,11 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /Frag_C.*DamageInstigator=([^ ]+PlayerController_C_\d+) /;
             res = regex.exec(line);
             if (res) {
-                data.incrementFrequencyCounter('frags', 1)
-
                 const playerController = res[ 1 ];
+
+                if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
+                    data.incrementFrequencyCounter('frags', 1)
+
                 if (!explosionCountersPerController[ playerController ]) explosionCountersPerController[ playerController ] = 0;
                 explosionCountersPerController[ playerController ]++;
                 return;
@@ -201,14 +206,16 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /ServerMove\: TimeStamp expired: ([\d\.]+), CurrentTimeStamp: ([\d\.]+), Character: (.+)/;
             res = regex.exec(line);
             if (res) {
-                data.incrementFrequencyCounter('serverMove', 0.05)
-
                 const timestampExpired = +res[ 1 ];
                 const currentTimeStamp = +res[ 2 ];
                 const delta = currentTimeStamp - timestampExpired
                 const playerName = pawnsToPlayerNames[ res[ 3 ] ];
                 const playerController = playerNameToPlayerController[ playerName ]
-                if (delta > 150) {
+
+                if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
+                    data.incrementFrequencyCounter('serverMove', 0.05)
+
+                if (delta > 150 || !ENABLE_TSEXPIRED_DELTA_CHECK) {
                     if (!serverMoveTimestampExpiredPerController[ playerController ]) {
                         // console.log("Found sus player", playerName, res[ 3 ])
                         serverMoveTimestampExpiredPerController[ playerController ] = 0;
@@ -327,11 +334,14 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /Die\(\): Player:.+from (.+) caused by (.+)/;
             res = regex.exec(line);
             if (res) {
-                data.incrementFrequencyCounter('playerDeaths', 1 / 5)
                 let playerController = res[ 1 ]
                 if (!playerController || playerController == 'nullptr') {
                     playerController = playerNameToPlayerController[ pawnsToPlayerNames[ res[ 2 ] ] ]
                 }
+
+                if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
+                    data.incrementFrequencyCounter('playerDeaths', 1 / 5)
+
                 if (!killsPerPlayerController[ playerController ]) killsPerPlayerController[ playerController ] = 0;
                 killsPerPlayerController[ playerController ]++;
                 return;
@@ -565,7 +575,7 @@ function drawGraph(logPath, fileNameNoExt) {
             data.setVar('TotalEndTime', endTime)
             const analysisDuration = ((endAnalysisTime - startTime) / 1000).toFixed(1)
             data.setVar('AnalysisDuration', analysisDuration)
-            
+
             const totalDuration = ((endTime - startTime) / 1000).toFixed(1)
             data.setVar('TotalDuration', totalDuration)
 
