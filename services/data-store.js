@@ -3,6 +3,7 @@ export default class DataStore {
     constructor() {
         this.timePoints = [];
         this.counters = new Map();
+        this.vars = new Map();
     }
 
     incrementCounter(key, incrementer, time = null) {
@@ -94,5 +95,17 @@ export default class DataStore {
 
     getCounters() {
         return [ ...this.timeData.keys() ];
+    }
+
+    setVar(key, value) {
+        this.vars.set(key, value);
+    }
+
+    getVarKeys() {
+        return [ ...this.vars.keys() ];
+    }
+
+    getVar(key) {
+        return this.vars.get(key);
     }
 }
