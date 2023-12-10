@@ -377,6 +377,7 @@ function drawGraph(logPath, fileNameNoExt) {
         })
 
         rl.on("close", () => {
+            const endAnalysisTIme = Date.now();
             const serverUptimeMs = (+data.timePoints[ data.timePoints.length - 1 ].time - +data.timePoints[ 0 ].time)
             const serverUptimeHours = (serverUptimeMs / 1000 / 60 / 60).toFixed(1);
 
@@ -548,7 +549,8 @@ function drawGraph(logPath, fileNameNoExt) {
             });
 
             const endTime = Date.now();
-            const analysisDuration = ((endTime - startTime) / 1000).toFixed(1)
+            const analysisDuration = ((endAnalysisTIme - startTime) / 1000).toFixed(1)
+            const totalDuration = ((endTime - startTime) / 1000).toFixed(1)
 
             console.log(`\n\x1b[1m\x1b[34m### SERVER STAT REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Name:\x1b[0m ${serverName}`)
@@ -560,6 +562,7 @@ function drawGraph(logPath, fileNameNoExt) {
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${data.getCounterData('steamEmptyTicket').map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mUnique Client NetSpeed Values:\x1b[0m ${[ ...uniqueClientNetSpeedValues.values() ].join('; ')}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mAnalysis duration:\x1b[0m ${analysisDuration}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mTotal duration:\x1b[0m ${totalDuration}`)
             console.log(`\x1b[1m\x1b[34m### CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             const cheaters = {
                 Explosions: explosionCountersPerController,
