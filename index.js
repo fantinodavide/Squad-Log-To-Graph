@@ -579,7 +579,7 @@ function drawGraph(logPath, fileNameNoExt) {
                         minCount = 200;
                         break;
                     case 'ServerMoveTimeStampExpired':
-                        minCount = 3000;
+                        minCount = 1000;
                         break;
                     case 'Kills':
                         minCount = 100;
