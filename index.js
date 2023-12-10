@@ -603,7 +603,7 @@ function drawGraph(logPath, fileNameNoExt) {
                         minCount = 100;
                         break;
                     case 'ClientNetSpeed':
-                        minCount = 1800;
+                        minCount = 18000;
                         break;
                 }
 
