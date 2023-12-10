@@ -516,7 +516,7 @@ function drawGraph(logPath, fileNameNoExt) {
                         {
                             pointStyle: 'circle',
                             pointRadius: 0,
-                            label: 'Deaths/5',
+                            label: 'Kills/5',
                             data: data.getCounterData('playerDeaths'),
                             backgroundColor: "#bc0303",
                             borderColor: "#bc0303"
