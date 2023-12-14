@@ -72,6 +72,7 @@ function drawGraph(logPath, fileNameNoExt) {
         let explosionCountersPerController = []
         let serverMoveTimestampExpiredPerController = []
         let pawnsToPlayerNames = []
+        let pawnToSteamID = []
         let chainIdToPlayerController = []
         let playerNameToPlayerController = []
         let playerControllerToPlayerName = []
@@ -81,6 +82,7 @@ function drawGraph(logPath, fileNameNoExt) {
         let connectionTimesByPlayerController = []
         let disconnectionTimesByPlayerController = []
         let playerControllerToNetspeed = []
+        let fobHitsPerController = []
 
         const fileStream = fs.createReadStream(logPath);
         const rl = readline.createInterface({
@@ -142,7 +144,6 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /LogOnline: Warning: STEAM: AUTH: Ticket from user .+ is empty/;
             res = regex.exec(line);
             if (res) {
-                // steamEmptyTicket[ steamEmptyTicket.length - 1 ].y += 1;
                 data.incrementFrequencyCounter('steamEmptyTicket', 1)
                 return;
             }
@@ -150,7 +151,6 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /CloseBunch/
             res = regex.exec(line);
             if (res) {
-                // queuePoints[ queuePoints.length - 1 ].y -= 1;
                 data.incrementCounter('queue', -1)
             }
 
@@ -210,14 +210,25 @@ function drawGraph(logPath, fileNameNoExt) {
                 const currentTimeStamp = +res[ 2 ];
                 const delta = currentTimeStamp - timestampExpired
                 const playerName = pawnsToPlayerNames[ res[ 3 ] ];
-                const playerController = playerNameToPlayerController[ playerName ]
+                const steamID = pawnToSteamID[ res[ 3 ] ];
+                const playerControllerHistory = steamIDToPlayerController.get(steamID);
+                const lastPlayerController = [ ...playerControllerHistory ].pop();
+                const playerController = steamID ? lastPlayerController : playerNameToPlayerController[ playerName ]
+
+                let unidentifiedPawns = data.getVar('UnidentifiedPawns');
+                if (!unidentifiedPawns) {
+                    data.setVar('UnidentifiedPawns', new Set())
+                    unidentifiedPawns = data.getVar('UnidentifiedPawns');
+                }
+
+                if (!playerController)
+                    unidentifiedPawns.add(`${res[ 3 ]} - ${playerName} - ${steamID} - ${playerController}`)
 
                 if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
                     data.incrementFrequencyCounter('serverMove', 0.05)
 
                 if (delta > 150 || !ENABLE_TSEXPIRED_DELTA_CHECK) {
                     if (!serverMoveTimestampExpiredPerController[ playerController ]) {
-                        // console.log("Found sus player", playerName, res[ 3 ])
                         serverMoveTimestampExpiredPerController[ playerController ] = 0;
                     }
                     serverMoveTimestampExpiredPerController[ playerController ]++;
@@ -251,7 +262,7 @@ function drawGraph(logPath, fileNameNoExt) {
             if (res) {
                 data.setNewCounterValue('clientNetSpeed', (+res[ 3 ]) / 1000)
                 data.getVar('UniqueClientNetSpeedValues').add(+res[ 3 ]);
-                const playerController = chainIdToPlayerController[ res[ 2 ] ]
+                const playerController = chainIdToPlayerController[ +res[ 2 ] ]
                 if (playerController) {
                     if (!playerControllerToNetspeed[ playerController ]) playerControllerToNetspeed[ playerController ] = []
                     playerControllerToNetspeed[ playerController ].push(+res[ 3 ])
@@ -269,8 +280,24 @@ function drawGraph(logPath, fileNameNoExt) {
                 regex = /\[(.+)\]\[ ?(\d+)\]LogSquad: PostLogin: NewPlayer: [^ ]+PlayerController_C.+PersistentLevel\.(.+)/;
                 res = regex.exec(line);
                 if (res) {
-                    chainIdToPlayerController[ res[ 2 ] ] = res[ 3 ];
+                    chainIdToPlayerController[ +res[ 2 ] ] = res[ 3 ];
                     connectionTimesByPlayerController[ res[ 3 ] ] = getDateTime(res[ 1 ])
+                }
+
+                regex = /Die\(\): Player:.+from (.+) caused by (.+)/;
+                res = regex.exec(line);
+                if (res) {
+                    let playerController = res[ 1 ]
+                    if (!playerController || playerController == 'nullptr') {
+                        playerController = playerNameToPlayerController[ pawnsToPlayerNames[ res[ 2 ] ] ]
+                    }
+
+                    if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
+                        data.incrementFrequencyCounter('PlayerKills', 1 / 5)
+
+                    if (!killsPerPlayerController[ playerController ]) killsPerPlayerController[ playerController ] = 0;
+                    killsPerPlayerController[ playerController ]++;
+                    return;
                 }
             } else {
                 regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquad: PostLogin: NewPlayer: BP_PlayerController_C .+PersistentLevel\.(.+) \(IP: ([\d\.]+) \| Online IDs: EOS: (.+) steam: (\d+)\)/;
@@ -278,7 +305,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 if (res) {
                     const playerController = res[ 3 ];
 
-                    chainIdToPlayerController[ res[ 2 ] ] = playerController;
+                    chainIdToPlayerController[ +res[ 2 ] ] = playerController;
                     connectionTimesByPlayerController[ res[ 3 ] ] = getDateTime(res[ 1 ])
 
                     const steamID = res[ 6 ];
@@ -294,29 +321,42 @@ function drawGraph(logPath, fileNameNoExt) {
                 regex = /OnPossess\(\): PC=(.+) \(Online IDs: EOS: (.+) steam: (\d+)\) Pawn=(.+) FullPath/;
                 res = regex.exec(line);
                 if (res) {
+                    pawnToSteamID[ res[ 4 ] ] = res[ 3 ];
                     pawnsToPlayerNames[ res[ 4 ] ] = res[ 1 ];
+                }
+
+                regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQSoldier::)?Die\(\): Player:(.+) KillingDamage=(?:-)*([0-9.]+) from ([A-z_0-9]+) \(Online IDs: EOS: ([\w\d]{32}) steam: (\d{17}) \| Contoller ID: ([\w\d]+)\) caused by ([A-z_0-9-]+)_C/;
+                res = regex.exec(line);
+                if (res) {
+                    let playerController = res[ 5 ]
+
+                    if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
+                        data.incrementFrequencyCounter('PlayerKills', 1 / 5)
+
+                    if (!killsPerPlayerController[ playerController ]) killsPerPlayerController[ playerController ] = 0;
+                    killsPerPlayerController[ playerController ]++;
+                    return;
                 }
             }
 
             regex = /\[.+\]\[ ?(\d+)\]LogSquad: Player (.+) has been added to Team/;
             res = regex.exec(line);
             if (res) {
-                // data.incrementCounter('players', 1);
-                playerNameToPlayerController[ res[ 2 ] ] = chainIdToPlayerController[ res[ 1 ] ];
-                playerControllerToPlayerName[ chainIdToPlayerController[ res[ 1 ] ] ] = res[ 2 ];
+                playerNameToPlayerController[ res[ 2 ] ] = chainIdToPlayerController[ +res[ 1 ] ];
+                playerControllerToPlayerName[ chainIdToPlayerController[ +res[ 1 ] ] ] = res[ 2 ];
                 return;
             }
             regex = /\[(.+)\]\[ ?(\d+)\]LogNet: Join succeeded: (.+)/;
             res = regex.exec(line);
             if (res) {
-                delete chainIdToPlayerController[ res[ 2 ] ];
+                delete chainIdToPlayerController[ +res[ 2 ] ];
                 return;
             }
 
             regex = /\[.+\]\[ ?(\d+)\]LogEOS: \[Category: LogEOSAntiCheat\] \[AntiCheatServer\] \[RegisterClient-001\].+AccountId: (\d+) IpAddress/;
             res = regex.exec(line);
             if (res) {
-                const playerController = chainIdToPlayerController[ res[ 1 ] ];
+                const playerController = chainIdToPlayerController[ +res[ 1 ] ];
 
                 if (playerController) {
                     const steamID = res[ 2 ];
@@ -331,19 +371,13 @@ function drawGraph(logPath, fileNameNoExt) {
                 return;
             }
 
-            regex = /Die\(\): Player:.+from (.+) caused by (.+)/;
+            regex = /TakeDamage\(\): BP_FOBRadio_Woodland_C.+Online IDs: EOS: ([\w\d]{32}) steam: (\d{17})\)/;
             res = regex.exec(line);
             if (res) {
-                let playerController = res[ 1 ]
-                if (!playerController || playerController == 'nullptr') {
-                    playerController = playerNameToPlayerController[ pawnsToPlayerNames[ res[ 2 ] ] ]
-                }
-
+                const playerController = [ ...steamIDToPlayerController.get(res[ 2 ]) ].pop();
                 if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
-                    data.incrementFrequencyCounter('playerDeaths', 1 / 5)
-
-                if (!killsPerPlayerController[ playerController ]) killsPerPlayerController[ playerController ] = 0;
-                killsPerPlayerController[ playerController ]++;
+                    data.incrementFrequencyCounter('RadioHits', 1)
+                fobHitsPerController[ playerController ] = (fobHitsPerController[ playerController ] || 0) + 1
                 return;
             }
 
@@ -395,6 +429,13 @@ function drawGraph(logPath, fileNameNoExt) {
                 data.setVar('ServerOS', res[ 1 ])
                 return;
             }
+
+            regex = /LogNet: NotifyAcceptingConnection accepted from/;
+            res = regex.exec(line);
+            if (res) {
+                data.incrementFrequencyCounter('AcceptedConnection', 0.001)
+                return;
+            }
         })
 
         rl.on("close", () => {
@@ -407,8 +448,6 @@ function drawGraph(logPath, fileNameNoExt) {
 
             const chartCanvas = createCanvas(canvasWidth, canvasHeight);
             Chart.defaults.font.size = 40;
-
-            // console.log(data.getCounterData('queue'))
 
             const chart = new Chart(chartCanvas, {
                 type: "line",
@@ -517,9 +556,25 @@ function drawGraph(logPath, fileNameNoExt) {
                             pointStyle: 'circle',
                             pointRadius: 0,
                             label: 'Kills/5',
-                            data: data.getCounterData('playerDeaths'),
+                            data: data.getCounterData('PlayerKills'),
                             backgroundColor: "#bc0303",
                             borderColor: "#bc0303"
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'AcceptedConnection/5',
+                            data: data.getCounterData('AcceptedConnection'),
+                            backgroundColor: "#ffff00",
+                            borderColor: "#ffff00"
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'RadioHits',
+                            data: data.getCounterData('RadioHits'),
+                            backgroundColor: "#33aa00",
+                            borderColor: "#33aa00"
                         },
                         // {
                         //     pointStyle: 'circle',
@@ -647,6 +702,14 @@ function drawGraph(logPath, fileNameNoExt) {
                     let stringifiedDisconnectionTime = disconnectionTimesByPlayerController[ playerController ]?.toLocaleString() || "N/A"
 
                     console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[90m ${playerController}\x1b[90m: \x1b[91m${killsPerPlayerController[ playerController ] || 0} kills - (${stringifiedConnectionTime} - ${stringifiedDisconnectionTime})\x1b[0m`)
+                }
+            }
+
+            const unidentifiedPawns = data.getVar('UnidentifiedPawns');
+            if (unidentifiedPawns.size > 0) {
+                console.log(`\x1b[1m\x1b[34m### UNIDENTIFIED PAWNS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
+                for (let pawn of unidentifiedPawns) {
+                    console.log(`\x1b[ 1m\x1b[ 34m#\x1b[ 0m == \x1b[ 1m${pawn} \x1b[ 0m`)
                 }
             }
             console.log(`\x1b[1m\x1b[34m### FINISHED ALL REPORTS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
