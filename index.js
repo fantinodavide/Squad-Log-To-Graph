@@ -706,7 +706,7 @@ function drawGraph(logPath, fileNameNoExt) {
             }
 
             const unidentifiedPawns = data.getVar('UnidentifiedPawns');
-            if (unidentifiedPawns.size > 0) {
+            if (unidentifiedPawns?.size > 0) {
                 console.log(`\x1b[1m\x1b[34m### UNIDENTIFIED PAWNS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
                 for (let pawn of unidentifiedPawns) {
                     console.log(`\x1b[ 1m\x1b[ 34m#\x1b[ 0m == \x1b[ 1m${pawn} \x1b[ 0m`)
