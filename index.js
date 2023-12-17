@@ -95,7 +95,7 @@ function drawGraph(logPath, fileNameNoExt) {
             totalLines++;
             let regex, res;
 
-            regex = /\[(.+)\]\[\d+\]LogSquad: .+: Server Tick Rate: (\d+.?\d+)/;
+            regex = /\[(.+)\]\[[\s\d]+\]LogSquad: .+: Server Tick Rate: (\d+.?\d+)/;
             res = regex.exec(line);
             if (res) {
                 const timePoint = getDateTime(res[ 1 ]);
@@ -183,7 +183,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 return;
             }
 
-            regex = /\[(.+)\]\[\d+].*LogWorld: SeamlessTravel to: .+\/([^\/]+)$/;
+            regex = /\[(.+)\]\[[\s\d]+].*LogWorld: SeamlessTravel to: .+\/([^\/]+)$/;
             res = regex.exec(line);
             if (res) {
                 data.setNewCounterValue('layers', 150, res[ 2 ])
@@ -257,7 +257,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 return;
             }
 
-            regex = /\[(.+)\]\[ ?(\d+)\].+Client netspeed is (\d+)/;
+            regex = /\[(.+)\]\[([\s\d]+)\].+Client netspeed is (\d+)/;
             res = regex.exec(line);
             if (res) {
                 data.setNewCounterValue('clientNetSpeed', (+res[ 3 ]) / 1000)
@@ -277,7 +277,7 @@ function drawGraph(logPath, fileNameNoExt) {
                     pawnsToPlayerNames[ res[ 2 ] ] = res[ 1 ];
                 }
 
-                regex = /\[(.+)\]\[ ?(\d+)\]LogSquad: PostLogin: NewPlayer: [^ ]+PlayerController_C.+PersistentLevel\.(.+)/;
+                regex = /\[(.+)\]\[([\s\d]+)\]LogSquad: PostLogin: NewPlayer: [^ ]+PlayerController_C.+PersistentLevel\.(.+)/;
                 res = regex.exec(line);
                 if (res) {
                     chainIdToPlayerController[ +res[ 2 ] ] = res[ 3 ];
@@ -339,21 +339,21 @@ function drawGraph(logPath, fileNameNoExt) {
                 }
             }
 
-            regex = /\[.+\]\[ ?(\d+)\]LogSquad: Player (.+) has been added to Team/;
+            regex = /\[.+\]\[([\s\d]+)\]LogSquad: Player (.+) has been added to Team/;
             res = regex.exec(line);
             if (res) {
                 playerNameToPlayerController[ res[ 2 ] ] = chainIdToPlayerController[ +res[ 1 ] ];
                 playerControllerToPlayerName[ chainIdToPlayerController[ +res[ 1 ] ] ] = res[ 2 ];
                 return;
             }
-            regex = /\[(.+)\]\[ ?(\d+)\]LogNet: Join succeeded: (.+)/;
+            regex = /\[(.+)\]\[([\s\d]+)\]LogNet: Join succeeded: (.+)/;
             res = regex.exec(line);
             if (res) {
                 delete chainIdToPlayerController[ +res[ 2 ] ];
                 return;
             }
 
-            regex = /\[.+\]\[ ?(\d+)\]LogEOS: \[Category: LogEOSAntiCheat\] \[AntiCheatServer\] \[RegisterClient-001\].+AccountId: (\d+) IpAddress/;
+            regex = /\[.+\]\[([\s\d]+)\]LogEOS: \[Category: LogEOSAntiCheat\] \[AntiCheatServer\] \[RegisterClient-001\].+AccountId: (\d+) IpAddress/;
             res = regex.exec(line);
             if (res) {
                 const playerController = chainIdToPlayerController[ +res[ 1 ] ];
