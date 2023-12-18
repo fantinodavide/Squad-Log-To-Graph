@@ -69,8 +69,9 @@ function drawGraph(logPath, fileNameNoExt) {
 
         data.setVar('UniqueClientNetSpeedValues', new Set())
         data.setVar('ServerLiveTime', 0)
+        data.setVar('ServerSeedingTime', 0)
 
-        data.setVar('CalculateLiveTime', calcLiveTime)
+        data.setVar('CalculateLiveTime', calcSeedingLiveTime)
 
         let explosionCountersPerController = []
         let serverMoveTimestampExpiredPerController = []
@@ -640,6 +641,7 @@ function drawGraph(logPath, fileNameNoExt) {
             data.setVar('TotalDuration', totalDuration)
 
             const liveTime = (data.getVar('ServerLiveTime') / 1000 / 60 / 60).toFixed(1);
+            const seedingTime = (data.getVar('ServerSeedingTime') / 1000 / 60 / 60).toFixed(1);
 
             console.log(`\n\x1b[1m\x1b[34m### SERVER STAT REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Name:\x1b[0m ${data.getVar('ServerName')}`)
@@ -648,6 +650,7 @@ function drawGraph(logPath, fileNameNoExt) {
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSquad Version:\x1b[0m ${data.getVar('ServerVersion')}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Uptime:\x1b[0m ${serverUptimeHours} h`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Live Time:\x1b[0m ${liveTime} h`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Seeding Time:\x1b[0m ${seedingTime} h`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mHost Closed Connections:\x1b[0m ${data.getCounterData('hostClosedConnection').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${data.getCounterData('queueDisconnections').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${data.getCounterData('steamEmptyTicket').map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
@@ -739,13 +742,21 @@ function getDateTime(date) {
     return new Date(res)
 }
 
-function calcLiveTime(data, threshold = 75) {
+function calcSeedingLiveTime(data, liveThreshold = 75, seedingMinThreshold = 3) {
     const prevAmountPlayersData = data.getCounterLastValue('players')
-    if (prevAmountPlayersData && prevAmountPlayersData.y >= threshold) {
+
+    if (!prevAmountPlayersData) return;
+
+    if (prevAmountPlayersData.y >= liveThreshold) {
         const prevLiveTime = data.getVar('ServerLiveTime')
         const curTime = data.getLastTimePoint().time;
         const timeDiff = +curTime - +prevAmountPlayersData.time
         data.setVar('ServerLiveTime', prevLiveTime + timeDiff)
+    } else if (prevAmountPlayersData.y >= seedingMinThreshold) {
+        const prevLiveTime = data.getVar('ServerSeedingTime')
+        const curTime = data.getLastTimePoint().time;
+        const timeDiff = +curTime - +prevAmountPlayersData.time
+        data.setVar('ServerSeedingTime', prevLiveTime + timeDiff)
     }
 }
 
