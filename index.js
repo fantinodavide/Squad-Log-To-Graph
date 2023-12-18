@@ -68,6 +68,9 @@ function drawGraph(logPath, fileNameNoExt) {
         data.setVar('MaxQueue', 0)
 
         data.setVar('UniqueClientNetSpeedValues', new Set())
+        data.setVar('ServerLiveTime', 0)
+
+        data.setVar('CalculateLiveTime', calcLiveTime)
 
         let explosionCountersPerController = []
         let serverMoveTimestampExpiredPerController = []
@@ -157,12 +160,14 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /LogSquad: PostLogin: NewPlayer:/;
             res = regex.exec(line);
             if (res) {
+                data.getVar('CalculateLiveTime')(data)
                 data.incrementCounter('players', 1);
             }
 
             regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogNet: UChannel::Close: Sending CloseBunch\. ChIndex == [0-9]+\. Name: \[UChannel\] ChIndex: [0-9]+, Closing: [0-9]+ \[UNetConnection\] RemoteAddr: (.+):[0-9]+, Name: (Steam|EOSIp)NetConnection_[0-9]+, Driver: GameNetDriver (Steam|EOS)NetDriver_[0-9]+, IsServer: YES, PC: ([^ ]+PlayerController_C_[0-9]+), Owner: [^ ]+PlayerController_C_[0-9]+/
             res = regex.exec(line);
             if (res) {
+                data.getVar('CalculateLiveTime')(data)
                 data.incrementCounter('players', -1);
                 disconnectionTimesByPlayerController[ res[ 6 ] ] = getDateTime(res[ 1 ])
                 return;
@@ -634,12 +639,15 @@ function drawGraph(logPath, fileNameNoExt) {
             const totalDuration = ((endTime - startTime) / 1000).toFixed(1)
             data.setVar('TotalDuration', totalDuration)
 
+            const liveTime = (data.getVar('ServerLiveTime') / 1000 / 60 / 60).toFixed(1);
+
             console.log(`\n\x1b[1m\x1b[34m### SERVER STAT REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Name:\x1b[0m ${data.getVar('ServerName')}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer CPU:\x1b[0m ${data.getVar('ServerCPU')}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer OS:\x1b[0m ${data.getVar('ServerOS')}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSquad Version:\x1b[0m ${data.getVar('ServerVersion')}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Uptime:\x1b[0m ${serverUptimeHours} h`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mServer Live Time:\x1b[0m ${liveTime} h`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mHost Closed Connections:\x1b[0m ${data.getCounterData('hostClosedConnection').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${data.getCounterData('queueDisconnections').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${data.getCounterData('steamEmptyTicket').map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
@@ -729,6 +737,16 @@ function getDateTime(date) {
     parts[ 1 ] = parts[ 1 ].replace(/\./g, ':')
     const res = `${parts.join('T')}Z`;
     return new Date(res)
+}
+
+function calcLiveTime(data, threshold = 75) {
+    const prevAmountPlayersData = data.getCounterLastValue('players')
+    if (prevAmountPlayersData && prevAmountPlayersData.y >= threshold) {
+        const prevLiveTime = data.getVar('ServerLiveTime')
+        const curTime = data.getLastTimePoint().time;
+        const timeDiff = +curTime - +prevAmountPlayersData.time
+        data.setVar('ServerLiveTime', prevLiveTime + timeDiff)
+    }
 }
 
 main();
