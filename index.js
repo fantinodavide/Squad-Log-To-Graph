@@ -281,6 +281,9 @@ function drawGraph(logPath, fileNameNoExt) {
                 res = regex.exec(line);
                 if (res) {
                     pawnsToPlayerNames[ res[ 2 ] ] = res[ 1 ];
+                    const playerController = playerNameToPlayerController[ res[ 1 ] ];
+                    const steamID = playerControllerToSteamID[ playerController ];
+                    pawnToSteamID[ res[ 2 ] ] = steamID;
                 }
 
                 regex = /\[(.+)\]\[([\s\d]+)\]LogSquad: PostLogin: NewPlayer: [^ ]+PlayerController_C.+PersistentLevel\.(.+)/;
@@ -742,17 +745,21 @@ function getDateTime(date) {
     return new Date(res)
 }
 
-function calcSeedingLiveTime(data, liveThreshold = 75, seedingMinThreshold = 3) {
+function calcSeedingLiveTime(data, liveThreshold = 75, seedingMinThreshold = 2) {
     const prevAmountPlayersData = data.getCounterLastValue('players')
 
     if (!prevAmountPlayersData) return;
 
     if (prevAmountPlayersData.y >= liveThreshold) {
+        data.setVar('SeedingDone', true)
         const prevLiveTime = data.getVar('ServerLiveTime')
         const curTime = data.getLastTimePoint().time;
         const timeDiff = +curTime - +prevAmountPlayersData.time
         data.setVar('ServerLiveTime', prevLiveTime + timeDiff)
     } else if (prevAmountPlayersData.y >= seedingMinThreshold) {
+        if (data.getVar('SeedingDone')) return;
+        else data.setVar('SeedingDone', false);
+
         const prevLiveTime = data.getVar('ServerSeedingTime')
         const curTime = data.getLastTimePoint().time;
         const timeDiff = +curTime - +prevAmountPlayersData.time
