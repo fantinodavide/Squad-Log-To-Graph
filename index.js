@@ -196,7 +196,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 return;
             }
 
-            regex = /Frag_C.*DamageInstigator=([^ ]+PlayerController_C_\d+) /;
+            regex = /ApplyExplosiveDamage\(\).*DamageInstigator=([^ ]+PlayerController_C_\d+) /;
             res = regex.exec(line);
             if (res) {
                 const playerController = res[ 1 ];
