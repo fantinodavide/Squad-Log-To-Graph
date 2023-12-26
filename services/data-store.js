@@ -1,9 +1,16 @@
-const RESET_FREQUENCY_SECONDS = 120;
+const RESET_FREQUENCY_SECONDS_DEFAULT = 120;
 export default class DataStore {
-    constructor() {
+    #resetFrequencySeconds
+
+    constructor(resetFrequencySeconds = RESET_FREQUENCY_SECONDS_DEFAULT) {
+        this.#resetFrequencySeconds = resetFrequencySeconds
         this.timePoints = [];
         this.counters = new Map();
         this.vars = new Map();
+    }
+
+    get resetFrequencySeconds() {
+        return this.#resetFrequencySeconds
     }
 
     incrementCounter(key, incrementer, time = null) {
@@ -20,7 +27,7 @@ export default class DataStore {
     incrementFrequencyCounter(key, incrementer) {
         const timeNow = this.getLastTimePoint();
         const counter = this.counters.get(key);
-        if (!counter || +timeNow.time - +counter[ counter.length - 1 ].time > RESET_FREQUENCY_SECONDS * 1000)
+        if (!counter || +timeNow.time - +counter[ counter.length - 1 ].time > this.#resetFrequencySeconds * 1000)
             this.resetFrequencyCounter(key)
 
         this.incrementCounterLast(key, incrementer)
