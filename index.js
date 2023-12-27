@@ -672,7 +672,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 // Kills: killsPerPlayerController
             }
 
-            let suspectedCheaters = [];
+            let suspectedCheaters = new Set();
             for (let cK in cheaters) {
                 let minCount = 200;
                 switch (cK) {
@@ -702,7 +702,7 @@ function drawGraph(logPath, fileNameNoExt) {
                         playerName = playerControllerToPlayerName[ playerController ];
                         playerSteamID = playerControllerToSteamID[ playerController ];
 
-                        suspectedCheaters.push(playerSteamID);
+                        suspectedCheaters.add(playerSteamID);
 
                         console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[33m${playerSteamID}\x1b[90m ${playerController}\x1b[37m ${playerName}\x1b[90m: \x1b[91m${cheaters[ cK ][ playerId ]}\x1b[0m`)
                     }
