@@ -385,7 +385,7 @@ function drawGraph(logPath, fileNameNoExt) {
             if (res) {
                 const playerController = [ ...steamIDToPlayerController.get(res[ 2 ]) ].pop();
                 if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
-                    data.incrementFrequencyCounter('RadioHits', 1)
+                    data.incrementFrequencyCounter('RadioHits', 0.1)
                 fobHitsPerController[ playerController ] = (fobHitsPerController[ playerController ] || 0) + 1
                 return;
             }
@@ -448,6 +448,9 @@ function drawGraph(logPath, fileNameNoExt) {
         })
 
         rl.on("close", () => {
+            if (!data.getVar('ServerName'))
+                data.setVar('ServerName', fileNameNoExt)
+
             data.setVar('AnalysisEndTime', Date.now())
             const serverUptimeMs = (+data.timePoints[ data.timePoints.length - 1 ].time - +data.timePoints[ 0 ].time)
             const serverUptimeHours = (serverUptimeMs / 1000 / 60 / 60).toFixed(1);
@@ -572,7 +575,7 @@ function drawGraph(logPath, fileNameNoExt) {
                         {
                             pointStyle: 'circle',
                             pointRadius: 0,
-                            label: 'AcceptedConnection/5',
+                            label: 'AcceptedConnection/1000',
                             data: data.getCounterData('AcceptedConnection'),
                             backgroundColor: "#ffff00",
                             borderColor: "#ffff00"
@@ -580,7 +583,7 @@ function drawGraph(logPath, fileNameNoExt) {
                         {
                             pointStyle: 'circle',
                             pointRadius: 0,
-                            label: 'RadioHits',
+                            label: 'RadioHits/10',
                             data: data.getCounterData('RadioHits'),
                             backgroundColor: "#33aa00",
                             borderColor: "#33aa00"
@@ -658,6 +661,7 @@ function drawGraph(logPath, fileNameNoExt) {
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mFailed Queue Connections:\x1b[0m ${data.getCounterData('queueDisconnections').map(e => e.y / 3).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mSteam Empty Tickets:\x1b[0m ${data.getCounterData('steamEmptyTicket').map(e => e.y).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mUnique Client NetSpeed Values:\x1b[0m ${[ ...data.getVar('UniqueClientNetSpeedValues').values() ].join('; ')}`)
+            console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mAccepted Connection Lines:\x1b[0m ${data.getCounterData('AcceptedConnection').map(e => Math.round(e.y * 1000)).reduce((acc, curr) => acc + curr, 0)}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mAnalysis duration:\x1b[0m ${analysisDuration}`)
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mTotal duration:\x1b[0m ${totalDuration}`)
             console.log(`\x1b[1m\x1b[34m### CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
