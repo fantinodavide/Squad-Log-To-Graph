@@ -348,16 +348,18 @@ function drawGraph(logPath, fileNameNoExt) {
                 }
             }
 
-            regex = /\[.+\]\[([\s\d]+)\]LogSquad: Player (.+) has been added to Team/;
-            res = regex.exec(line);
-            if (res) {
-                playerNameToPlayerController[ res[ 2 ] ] = chainIdToPlayerController[ +res[ 1 ] ];
-                playerControllerToPlayerName[ chainIdToPlayerController[ +res[ 1 ] ] ] = res[ 2 ];
-                return;
-            }
+            // regex = /\[.+\]\[([\s\d]+)\]LogSquad: Player (.+) has been added to Team/;
+            // res = regex.exec(line);
+            // if (res) {
+            //     playerNameToPlayerController[ res[ 2 ] ] = chainIdToPlayerController[ +res[ 1 ] ];
+            //     playerControllerToPlayerName[ chainIdToPlayerController[ +res[ 1 ] ] ] = res[ 2 ];
+            //     return;
+            // }
             regex = /\[(.+)\]\[([\s\d]+)\]LogNet: Join succeeded: (.+)/;
             res = regex.exec(line);
             if (res) {
+                playerNameToPlayerController[ res[ 3 ] ] = chainIdToPlayerController[ +res[ 2 ] ];
+                playerControllerToPlayerName[ chainIdToPlayerController[ +res[ 2 ] ] ] = res[ 3 ];
                 delete chainIdToPlayerController[ +res[ 2 ] ];
                 return;
             }
