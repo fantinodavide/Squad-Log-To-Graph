@@ -73,20 +73,20 @@ function drawGraph(logPath, fileNameNoExt) {
 
         data.setVar('CalculateLiveTime', calcSeedingLiveTime)
 
-        let explosionCountersPerController = []
-        let serverMoveTimestampExpiredPerController = []
-        let pawnsToPlayerNames = []
-        let pawnToSteamID = []
-        let chainIdToPlayerController = []
-        let playerNameToPlayerController = []
-        let playerControllerToPlayerName = []
-        let playerControllerToSteamID = []
-        let steamIDToPlayerController = new Map();
-        let killsPerPlayerController = []
-        let connectionTimesByPlayerController = []
-        let disconnectionTimesByPlayerController = []
-        let playerControllerToNetspeed = []
-        let fobHitsPerController = []
+        data.setVar('explosionCountersPerController', [])
+        data.setVar('serverMoveTimestampExpiredPerController', [])
+        data.setVar('pawnsToPlayerNames', [])
+        data.setVar('pawnToSteamID', [])
+        data.setVar('chainIdToPlayerController', [])
+        data.setVar('playerNameToPlayerController', [])
+        data.setVar('playerControllerToPlayerName', [])
+        data.setVar('playerControllerToSteamID', [])
+        data.setVar('steamIDToPlayerController', new Map())
+        data.setVar('killsPerPlayerController', [])
+        data.setVar('connectionTimesByPlayerController', [])
+        data.setVar('disconnectionTimesByPlayerController', [])
+        data.setVar('playerControllerToNetspeed', [])
+        data.setVar('fobHitsPerController', [])
 
         const fileStream = fs.createReadStream(logPath);
         const rl = readline.createInterface({
@@ -170,6 +170,7 @@ function drawGraph(logPath, fileNameNoExt) {
             if (res) {
                 data.getVar('CalculateLiveTime')(data)
                 data.incrementCounter('players', -1);
+                const disconnectionTimesByPlayerController = data.getVar('disconnectionTimesByPlayerController')
                 disconnectionTimesByPlayerController[ res[ 6 ] ] = getDateTime(res[ 1 ])
                 return;
             }
@@ -204,6 +205,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
                     data.incrementFrequencyCounter('frags', 1)
 
+                const explosionCountersPerController = data.getVar('explosionCountersPerController')
                 if (!explosionCountersPerController[ playerController ]) explosionCountersPerController[ playerController ] = 0;
                 explosionCountersPerController[ playerController ]++;
                 return;
@@ -215,10 +217,13 @@ function drawGraph(logPath, fileNameNoExt) {
                 const timestampExpired = +res[ 1 ];
                 const currentTimeStamp = +res[ 2 ];
                 const delta = currentTimeStamp - timestampExpired
-                const playerName = pawnsToPlayerNames[ res[ 3 ] ];
+                const playerName = data.getVar('pawnsToPlayerNames')[ res[ 3 ] ];
+                const pawnToSteamID = data.getVar('pawnToSteamID')
                 const steamID = pawnToSteamID[ res[ 3 ] ];
+                const steamIDToPlayerController = data.getVar('steamIDToPlayerController')
                 const playerControllerHistory = steamIDToPlayerController.get(steamID);
                 const lastPlayerController = [ ...playerControllerHistory ].pop();
+                const playerNameToPlayerController = data.getVar('playerNameToPlayerController')
                 const playerController = steamID ? lastPlayerController : playerNameToPlayerController[ playerName ]
 
                 let unidentifiedPawns = data.getVar('UnidentifiedPawns');
@@ -233,6 +238,7 @@ function drawGraph(logPath, fileNameNoExt) {
                 if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
                     data.incrementFrequencyCounter('serverMove', 0.05)
 
+                const serverMoveTimestampExpiredPerController = data.getVar('serverMoveTimestampExpiredPerController')
                 if (delta > 150 || !ENABLE_TSEXPIRED_DELTA_CHECK) {
                     if (!serverMoveTimestampExpiredPerController[ playerController ]) {
                         serverMoveTimestampExpiredPerController[ playerController ] = 0;
@@ -268,6 +274,8 @@ function drawGraph(logPath, fileNameNoExt) {
             if (res) {
                 data.setNewCounterValue('clientNetSpeed', (+res[ 3 ]) / 1000)
                 data.getVar('UniqueClientNetSpeedValues').add(+res[ 3 ]);
+                const playerControllerToNetspeed = data.getVar('playerControllerToNetspeed')
+                const chainIdToPlayerController = data.getVar('chainIdToPlayerController')
                 const playerController = chainIdToPlayerController[ +res[ 2 ] ]
                 if (playerController) {
                     if (!playerControllerToNetspeed[ playerController ]) playerControllerToNetspeed[ playerController ] = []
@@ -280,15 +288,21 @@ function drawGraph(logPath, fileNameNoExt) {
                 regex = /OnPossess\(\): PC=(.+) Pawn=(.+) FullPath/;
                 res = regex.exec(line);
                 if (res) {
+                    const pawnsToPlayerNames = data.getVar('pawnsToPlayerNames')
                     pawnsToPlayerNames[ res[ 2 ] ] = res[ 1 ];
+                    const playerNameToPlayerController = data.getVar('playerNameToPlayerController')
                     const playerController = playerNameToPlayerController[ res[ 1 ] ];
+                    const playerControllerToSteamID = data.getVar('playerControllerToSteamID')
                     const steamID = playerControllerToSteamID[ playerController ];
+                    const pawnToSteamID = data.getVar('pawnToSteamID')
                     pawnToSteamID[ res[ 2 ] ] = steamID;
                 }
 
                 regex = /\[(.+)\]\[([\s\d]+)\]LogSquad: PostLogin: NewPlayer: [^ ]+PlayerController_C.+PersistentLevel\.(.+)/;
                 res = regex.exec(line);
                 if (res) {
+                    const chainIdToPlayerController = data.getVar('chainIdToPlayerController')
+                    const connectionTimesByPlayerController = data.getVar('connectionTimesByPlayerController')
                     chainIdToPlayerController[ +res[ 2 ] ] = res[ 3 ];
                     connectionTimesByPlayerController[ res[ 3 ] ] = getDateTime(res[ 1 ])
                 }
@@ -298,12 +312,14 @@ function drawGraph(logPath, fileNameNoExt) {
                 if (res) {
                     let playerController = res[ 1 ]
                     if (!playerController || playerController == 'nullptr') {
+                        const playerNameToPlayerController = data.getVar('playerNameToPlayerController')
                         playerController = playerNameToPlayerController[ pawnsToPlayerNames[ res[ 2 ] ] ]
                     }
 
                     if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
                         data.incrementFrequencyCounter('PlayerKills', 1 / 5)
 
+                    const killsPerPlayerController = data.getVar('killsPerPlayerController')
                     if (!killsPerPlayerController[ playerController ]) killsPerPlayerController[ playerController ] = 0;
                     killsPerPlayerController[ playerController ]++;
                     return;
@@ -314,12 +330,16 @@ function drawGraph(logPath, fileNameNoExt) {
                 if (res) {
                     const playerController = res[ 3 ];
 
+                    const chainIdToPlayerController = data.getVar('chainIdToPlayerController')
+                    const connectionTimesByPlayerController = data.getVar('connectionTimesByPlayerController')
                     chainIdToPlayerController[ +res[ 2 ] ] = playerController;
                     connectionTimesByPlayerController[ res[ 3 ] ] = getDateTime(res[ 1 ])
 
                     const steamID = res[ 6 ];
+                    const playerControllerToSteamID = data.getVar('playerControllerToSteamID')
                     playerControllerToSteamID[ playerController ] = steamID;
 
+                    const steamIDToPlayerController = data.getVar('steamIDToPlayerController')
                     const playerControllerHistory = steamIDToPlayerController.get(steamID);
                     if (!playerControllerHistory)
                         steamIDToPlayerController.set(steamID, [ playerController ]);
@@ -330,8 +350,9 @@ function drawGraph(logPath, fileNameNoExt) {
                 regex = /OnPossess\(\): PC=(.+) \(Online IDs: EOS: (.+) steam: (\d+)\) Pawn=(.+) FullPath/;
                 res = regex.exec(line);
                 if (res) {
+                    const pawnToSteamID = data.getVar('pawnToSteamID')
                     pawnToSteamID[ res[ 4 ] ] = res[ 3 ];
-                    pawnsToPlayerNames[ res[ 4 ] ] = res[ 1 ];
+                    data.getVar('pawnsToPlayerNames')[ res[ 4 ] ] = res[ 1 ];
                 }
 
                 regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQSoldier::)?Die\(\): Player:(.+) KillingDamage=(?:-)*([0-9.]+) from ([A-z_0-9]+) \(Online IDs: EOS: ([\w\d]{32}) steam: (\d{17}) \| Contoller ID: ([\w\d]+)\) caused by ([A-z_0-9-]+)_C/;
@@ -342,6 +363,7 @@ function drawGraph(logPath, fileNameNoExt) {
                     if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
                         data.incrementFrequencyCounter('PlayerKills', 1 / 5)
 
+                    const killsPerPlayerController = data.getVar('killsPerPlayerController')
                     if (!killsPerPlayerController[ playerController ]) killsPerPlayerController[ playerController ] = 0;
                     killsPerPlayerController[ playerController ]++;
                     return;
@@ -358,6 +380,9 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /\[(.+)\]\[([\s\d]+)\]LogNet: Join succeeded: (.+)/;
             res = regex.exec(line);
             if (res) {
+                const playerNameToPlayerController = data.getVar('playerNameToPlayerController')
+                const chainIdToPlayerController = data.getVar('chainIdToPlayerController')
+                const playerControllerToPlayerName = data.getVar('playerControllerToPlayerName')
                 playerNameToPlayerController[ res[ 3 ] ] = chainIdToPlayerController[ +res[ 2 ] ];
                 playerControllerToPlayerName[ chainIdToPlayerController[ +res[ 2 ] ] ] = res[ 3 ];
                 delete chainIdToPlayerController[ +res[ 2 ] ];
@@ -367,12 +392,15 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /\[.+\]\[([\s\d]+)\]LogEOS: \[Category: LogEOSAntiCheat\] \[AntiCheatServer\] \[RegisterClient-001\].+AccountId: (\d+) IpAddress/;
             res = regex.exec(line);
             if (res) {
+                const chainIdToPlayerController = data.getVar('chainIdToPlayerController')
                 const playerController = chainIdToPlayerController[ +res[ 1 ] ];
 
                 if (playerController) {
                     const steamID = res[ 2 ];
+                    const playerControllerToSteamID = data.getVar('playerControllerToSteamID')
                     playerControllerToSteamID[ playerController ] = steamID;
 
+                    const steamIDToPlayerController = data.getVar('steamIDToPlayerController')
                     const playerControllerHistory = steamIDToPlayerController.get(steamID);
                     if (!playerControllerHistory)
                         steamIDToPlayerController.set(steamID, [ playerController ]);
@@ -385,6 +413,8 @@ function drawGraph(logPath, fileNameNoExt) {
             regex = /TakeDamage\(\): BP_FOBRadio_Woodland_C.+Online IDs: EOS: ([\w\d]{32}) steam: (\d{17})\)/;
             res = regex.exec(line);
             if (res) {
+                const fobHitsPerController = data.getVar('fobHitsPerController')
+                const steamIDToPlayerController = data.getVar('steamIDToPlayerController')
                 const playerController = [ ...steamIDToPlayerController.get(res[ 2 ]) ].pop();
                 if (PLAYER_CONTROLLER_FILTER == "" || PLAYER_CONTROLLER_FILTER == playerController)
                     data.incrementFrequencyCounter('RadioHits', 0.1)
@@ -668,8 +698,8 @@ function drawGraph(logPath, fileNameNoExt) {
             console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[31mTotal duration:\x1b[0m ${totalDuration}`)
             console.log(`\x1b[1m\x1b[34m### CHEATING REPORT: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             const cheaters = {
-                Explosions: explosionCountersPerController,
-                ServerMoveTimeStampExpired: serverMoveTimestampExpiredPerController,
+                Explosions: data.getVar('explosionCountersPerController'),
+                ServerMoveTimeStampExpired: data.getVar('serverMoveTimestampExpiredPerController'),
                 // ClientNetSpeed: playerControllerToNetspeed
                 // Kills: killsPerPlayerController
             }
@@ -701,6 +731,8 @@ function drawGraph(logPath, fileNameNoExt) {
                         let playerController;
 
                         playerController = playerId
+                        const playerControllerToPlayerName = data.getVar('playerControllerToPlayerName')
+                        const playerControllerToSteamID = data.getVar('playerControllerToSteamID')
                         playerName = playerControllerToPlayerName[ playerController ];
                         playerSteamID = playerControllerToSteamID[ playerController ];
 
@@ -712,8 +744,13 @@ function drawGraph(logPath, fileNameNoExt) {
             }
             console.log(`\x1b[1m\x1b[34m### SUSPECTED CHEATERS SESSIONS: \x1b[32m${fileNameNoExt}\x1b[34m ###\x1b[0m`)
             for (let playerSteamID of suspectedCheaters) {
+                const disconnectionTimesByPlayerController = data.getVar('disconnectionTimesByPlayerController')
+                const connectionTimesByPlayerController = data.getVar('connectionTimesByPlayerController')
+                const killsPerPlayerController = data.getVar('killsPerPlayerController')
+                const steamIDToPlayerController = data.getVar('steamIDToPlayerController')
                 const playerControllerHistory = steamIDToPlayerController.get(playerSteamID);
                 if (!playerControllerHistory) continue;
+                const playerControllerToPlayerName = data.getVar('playerControllerToPlayerName')
                 let playerName = playerControllerToPlayerName[ playerControllerHistory[ 0 ] ];
                 console.log(`\x1b[1m\x1b[34m#\x1b[0m == \x1b[1m\x1b[33m${playerSteamID} \x1b[31m${playerName}\x1b[0m`)
 
