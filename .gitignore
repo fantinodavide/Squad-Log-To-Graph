@@ -12,3 +12,4 @@
 input-logs/**
 output-graphs/**
 !**/.gitkeep
+!LICENSE
