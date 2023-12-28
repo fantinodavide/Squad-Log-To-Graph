@@ -446,6 +446,18 @@ export default class Analyzer extends EventEmitter {
     }
 
     close() {
+        const data = this.#data;
+
+        const startTime = data.getVar('AnalysisStartTime')
+
+        const analysisEndTime = Date.now();
+        const analysisDurationMs = analysisEndTime - startTime
+        const analysisDuration = (analysisDurationMs / 1000).toFixed(1)
+
+        data.setVar('AnalysisEndTime', analysisEndTime)
+        data.setVar('AnalysisDurationMs', analysisDurationMs)
+        data.setVar('AnalysisDuration', analysisDuration)
+
         this.emit('close', this.#data)
         return this.#data;
     }

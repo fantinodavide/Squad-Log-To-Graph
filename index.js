@@ -72,7 +72,6 @@ function drawGraph(logPath, fileNameNoExt) {
             if (!data.getVar('ServerName'))
                 data.setVar('ServerName', fileNameNoExt)
 
-            data.setVar('AnalysisEndTime', Date.now())
             const serverUptimeMs = (+data.timePoints[ data.timePoints.length - 1 ].time - +data.timePoints[ 0 ].time)
             const serverUptimeHours = (serverUptimeMs / 1000 / 60 / 60).toFixed(1);
 
@@ -258,13 +257,13 @@ function drawGraph(logPath, fileNameNoExt) {
             });
 
             const startTime = data.getVar('AnalysisStartTime')
-            const endAnalysisTime = data.getVar('AnalysisEndTime')
-            const endTime = Date.now();
-            data.setVar('TotalEndTime', endTime)
-            const analysisDuration = ((endAnalysisTime - startTime) / 1000).toFixed(1)
-            data.setVar('AnalysisDuration', analysisDuration)
+            const totalEndTime = Date.now();
+            data.setVar('TotalEndTime', totalEndTime)
+            const analysisDuration = data.getVar('AnalysisDuration')
 
-            const totalDuration = ((endTime - startTime) / 1000).toFixed(1)
+            const totalDurationMs = totalEndTime - startTime
+            const totalDuration = (totalDurationMs / 1000).toFixed(1)
+            data.setVar('TotalDurationMs', totalDurationMs)
             data.setVar('TotalDuration', totalDuration)
 
             const liveTime = (data.getVar('ServerLiveTime') / 1000 / 60 / 60).toFixed(1);
