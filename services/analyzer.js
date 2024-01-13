@@ -288,11 +288,13 @@ export default class Analyzer extends EventEmitter {
                     res = regex.exec(line);
                     if (res) {
                         const playerController = res[ 3 ];
+                        const chainID = res[ 2 ];
+                        const currentGameTime = this.getDateTime(res[ 1 ]);
 
                         const chainIdToPlayerController = data.getVar('chainIdToPlayerController')
                         const connectionTimesByPlayerController = data.getVar('connectionTimesByPlayerController')
                         chainIdToPlayerController[ +res[ 2 ] ] = playerController;
-                        connectionTimesByPlayerController[ res[ 3 ] ] = this.getDateTime(res[ 1 ])
+                        connectionTimesByPlayerController[ res[ 3 ] ] = currentGameTime
 
                         const steamID = res[ 6 ];
                         const playerControllerToSteamID = data.getVar('playerControllerToSteamID')
@@ -304,6 +306,8 @@ export default class Analyzer extends EventEmitter {
                             steamIDToPlayerController.set(steamID, [ playerController ]);
                         else
                             playerControllerHistory.push(playerController)
+
+                        // const _controller = new PlayerController(chainID, playerController, currentGameTime)
                     }
 
                     regex = /OnPossess\(\): PC=(.+) \(Online IDs: EOS: (.+) steam: (\d+)\) Pawn=(.+) FullPath/;
@@ -312,6 +316,12 @@ export default class Analyzer extends EventEmitter {
                         const pawnToSteamID = data.getVar('pawnToSteamID')
                         pawnToSteamID[ res[ 4 ] ] = res[ 3 ];
                         data.getVar('pawnsToPlayerNames')[ res[ 4 ] ] = res[ 1 ];
+                    }
+
+                    regex = /LogPhysics: Warning: Component FoliageInstancedStaticMeshComponent/;
+                    res = regex.exec(line);
+                    if (res) {
+                        data.incrementFrequencyCounter('FoliageInstancedStaticMeshComponent', 1)
                     }
 
                     regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQSoldier::)?Die\(\): Player:(.+) KillingDamage=(?:-)*([0-9.]+) from ([A-z_0-9]+) \(Online IDs: EOS: ([\w\d]{32}) steam: (\d{17}) \| Contoller ID: ([\w\d]+)\) caused by ([A-z_0-9-]+)_C/;
@@ -434,6 +444,21 @@ export default class Analyzer extends EventEmitter {
                 res = regex.exec(line);
                 if (res) {
                     data.incrementFrequencyCounter('AcceptedConnection', 0.001)
+                    return;
+                }
+
+                regex = /ChangeState\(\):.+OldState=(?<oldState>\w+) NewState=(?<newState>\w+)/;
+                res = regex.exec(line);
+                if (res) {
+                    const state = res.groups.newState;
+                    switch (state.toLowerCase()) {
+                        case 'playing':
+                            data.incrementCounter('SpawnedCount', 1)
+                            break;
+                        case 'inactive':
+                            data.incrementCounter('SpawnedCount', -1)
+                            break;
+                    }
                     return;
                 }
             })
