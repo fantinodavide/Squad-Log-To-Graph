@@ -5,7 +5,7 @@ export default function () {
             // console.log(args.meta.dataset.label)
             const { ctx, data, chartArea: { left }, scales: { x, y } } = chart;
             const { chartArea } = chart;
-            if (args.index != 5) return;
+            if (args.index != 0) return;
 
             const chartMaxY = chart.scales.y.max;
             data.datasets[ args.index ].data.forEach((dataPoint, index) => {

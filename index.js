@@ -87,6 +87,15 @@ function drawGraph(logPath, fileNameNoExt) {
                     xLabels: data.getTimePoints(),
                     datasets: [
                         {
+                            type: 'bar',
+                            label: 'Layers',
+                            data: data.getCounterData('layers'),
+                            barThickness: 5,
+                            borderSkipped: false,
+                            backgroundColor: "#FFFFFF22",
+                            borderColor: "#FFFFFF22"
+                        },
+                        {
                             pointStyle: 'circle',
                             pointRadius: 0,
                             label: 'TickRate',
@@ -114,6 +123,14 @@ function drawGraph(logPath, fileNameNoExt) {
                         {
                             pointStyle: 'circle',
                             pointRadius: 0,
+                            label: 'Spawned Player Count',
+                            data: data.getCounterData('SpawnedCount'),
+                            backgroundColor: "#FF226666",
+                            borderColor: "#FF226666"
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
                             label: 'HostClosedConnection*3',
                             data: data.getCounterData('hostClosedConnection'),
                             backgroundColor: "#d87402",
@@ -126,15 +143,6 @@ function drawGraph(logPath, fileNameNoExt) {
                             data: data.getCounterData('queueDisconnections'),
                             backgroundColor: "#b5ac4f",
                             borderColor: "#b5ac4f"
-                        },
-                        {
-                            type: 'bar',
-                            label: 'Layers',
-                            data: data.getCounterData('layers'),
-                            barThickness: 5,
-                            borderSkipped: false,
-                            backgroundColor: "#FFFFFF22",
-                            borderColor: "#FFFFFF22"
                         },
                         {
                             pointStyle: 'circle',
@@ -211,11 +219,19 @@ function drawGraph(logPath, fileNameNoExt) {
                         // {
                         //     pointStyle: 'circle',
                         //     pointRadius: 0,
-                        //     label: 'UnableToFindVoiceChannel/200',
-                        //     data: data.getCounterData('unableToFindVoiceChannel'),
-                        //     backgroundColor: "#ffff00",
-                        //     borderColor: "#ffff00"
-                        // }
+                        //     label: 'FoliageInstancedStaticMeshComponent/10',
+                        //     data: data.getCounterData('FoliageInstancedStaticMeshComponent'),
+                        //     backgroundColor: "#449922",
+                        //     borderColor: "#449922"
+                        // },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            label: 'UnableToFindVoiceChannel/200',
+                            data: data.getCounterData('unableToFindVoiceChannel'),
+                            backgroundColor: "#ffff00",
+                            borderColor: "#ffff00"
+                        }
                     ]
                 },
                 options: {
