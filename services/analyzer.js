@@ -50,6 +50,7 @@ export default class Analyzer extends EventEmitter {
             data.setVar('playerControllerToSteamID', [])
             data.setVar('steamIDToPlayerController', new Map())
             data.setVar('killsPerPlayerController', [])
+            data.setVar('knifeWoundsPerPlayerController', [])
             data.setVar('connectionTimesByPlayerController', [])
             data.setVar('disconnectionTimesByPlayerController', [])
             data.setVar('playerControllerToNetspeed', [])
@@ -283,6 +284,30 @@ export default class Analyzer extends EventEmitter {
                         killsPerPlayerController[ playerController ]++;
                         return;
                     }
+
+                    regex = /Wound\(\): Player:.+from (.+) caused by (.+)/;
+                    res = regex.exec(line);
+                    if (res) {
+                        let playerController = res[1]
+                        if (!playerController || playerController == 'nullptr') {
+                            const playerNameToPlayerController = data.getVar('playerNameToPlayerController')
+                            const pawnsToPlayerNames = data.getVar('pawnsToPlayerNames')
+                            playerController = playerNameToPlayerController[pawnsToPlayerNames[res[2]]]
+                        }
+                        let weaponUsed = res[2]
+                        let knives = ['BP_AK74Bayonet', 'BP_AKMBayonet', 'BP_Bayonet2000', 'BP_G3Bayonet', 'BP_M9Bayonet', 'BP_OKC-3S', 'BP_QNL-95_Bayonet', 'BP_SA80Bayonet', 'BP_SKS_Bayonet', 'BP_SKS_Optic_Bayonet', 'BP_SOCP_Knife_AUS'];
+                        // If weaponUsed is any of the knives
+                        if (!knives.includes(weaponUsed)) {
+                            return;
+                        }
+                        if (this.options.PLAYER_CONTROLLER_FILTER == "" || this.options.PLAYER_CONTROLLER_FILTER == playerController)
+                            data.incrementFrequencyCounter('PlayerKnifeWounds', 1)
+
+                        const knifeWoundsPerPlayerController = data.getVar('knifeWoundsPerPlayerController')
+                        if (!knifeWoundsPerPlayerController[playerController]) knifeWoundsPerPlayerController[playerController] = 0;
+                        knifeWoundsPerPlayerController[playerController]++;
+                        return;
+                    }
                 } else {
                     regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquad: PostLogin: NewPlayer: BP_PlayerController_C .+PersistentLevel\.(.+) \(IP: ([\d\.]+) \| Online IDs: EOS: (.+) steam: (\d+)\)/;
                     res = regex.exec(line);
@@ -335,6 +360,26 @@ export default class Analyzer extends EventEmitter {
                         const killsPerPlayerController = data.getVar('killsPerPlayerController')
                         if (!killsPerPlayerController[ playerController ]) killsPerPlayerController[ playerController ] = 0;
                         killsPerPlayerController[ playerController ]++;
+                        return;
+                    }
+
+                    regex = /^\[([0-9.:-]+)]\[([ 0-9]*)]LogSquadTrace: \[DedicatedServer](?:ASQSoldier::)?Wound\(\): Player:(.+) KillingDamage=(?:-)*([0-9.]+) from ([A-z_0-9]+) \(Online IDs: EOS: ([\w\d]{32}) steam: (\d{17}) \| Controller ID: ([\w\d]+)\) caused by ([A-z_0-9-]+)_C/;
+                    res = regex.exec(line);
+                    if (res) {
+                        let playerController = res[5]
+
+                        let weaponUsed = res[9]
+                        let knives = ['BP_AK74Bayonet', 'BP_AKMBayonet', 'BP_Bayonet2000', 'BP_G3Bayonet', 'BP_M9Bayonet', 'BP_OKC-3S', 'BP_QNL-95_Bayonet', 'BP_SA80Bayonet', 'BP_SKS_Bayonet', 'BP_SKS_Optic_Bayonet', 'BP_SOCP_Knife_AUS'];
+                        // If weaponUsed is any of the knives
+                        if (!knives.includes(weaponUsed)) {
+                            return;
+                        }
+                        if (this.options.PLAYER_CONTROLLER_FILTER == "" || this.options.PLAYER_CONTROLLER_FILTER == playerController)
+                            data.incrementFrequencyCounter('PlayerKnifeWounds', 1)
+
+                        const knifeWoundsPerPlayerController = data.getVar('knifeWoundsPerPlayerController')
+                        if (!knifeWoundsPerPlayerController[playerController]) knifeWoundsPerPlayerController[playerController] = 0;
+                        knifeWoundsPerPlayerController[playerController]++;
                         return;
                     }
                 }

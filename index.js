@@ -203,6 +203,14 @@ function drawGraph(logPath, fileNameNoExt) {
                         {
                             pointStyle: 'circle',
                             pointRadius: 0,
+                            label: 'KnifeWouds',
+                            data: data.getCounterData('PlayerKnifeWounds'),
+                            backgroundColor: "#ff0000",
+                            borderColor: "#ff0000"
+                        },
+                        {
+                            pointStyle: 'circle',
+                            pointRadius: 0,
                             label: 'AcceptedConnection/1000',
                             data: data.getCounterData('AcceptedConnection'),
                             backgroundColor: "#ffff00",
@@ -304,6 +312,7 @@ function drawGraph(logPath, fileNameNoExt) {
             const cheaters = {
                 Explosions: data.getVar('explosionCountersPerController'),
                 ServerMoveTimeStampExpired: data.getVar('serverMoveTimestampExpiredPerController'),
+                KnifeWounds: data.getVar('knifeWoundsPerPlayerController'),
                 // ClientNetSpeed: playerControllerToNetspeed
                 // Kills: killsPerPlayerController
             }
@@ -317,6 +326,9 @@ function drawGraph(logPath, fileNameNoExt) {
                         break;
                     case 'ServerMoveTimeStampExpired':
                         minCount = 3000;
+                        break;
+                    case 'KnifeWounds':
+                        minCount = 15;
                         break;
                     case 'Kills':
                         minCount = 100;
@@ -350,8 +362,8 @@ function drawGraph(logPath, fileNameNoExt) {
             for (let playerSteamID of suspectedCheaters) {
                 const disconnectionTimesByPlayerController = data.getVar('disconnectionTimesByPlayerController')
                 const connectionTimesByPlayerController = data.getVar('connectionTimesByPlayerController')
-                const killsPerPlayerController = data.getVar('killsPerPlayerController')
-                const steamIDToPlayerController = data.getVar('steamIDToPlayerController')
+                                const killsPerPlayerController = data.getVar('killsPerPlayerController')
+                                const steamIDToPlayerController = data.getVar('steamIDToPlayerController')
                 const playerControllerHistory = steamIDToPlayerController.get(playerSteamID);
                 if (!playerControllerHistory) continue;
                 const playerControllerToPlayerName = data.getVar('playerControllerToPlayerName')
