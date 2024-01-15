@@ -362,8 +362,11 @@ function drawGraph(logPath, fileNameNoExt) {
             for (let playerSteamID of suspectedCheaters) {
                 const disconnectionTimesByPlayerController = data.getVar('disconnectionTimesByPlayerController')
                 const connectionTimesByPlayerController = data.getVar('connectionTimesByPlayerController')
-                                const killsPerPlayerController = data.getVar('killsPerPlayerController')
-                                const steamIDToPlayerController = data.getVar('steamIDToPlayerController')
+                const explosionCountersPerController = data.getVar('explosionCountersPerController')
+                const serverMoveTimestampExpiredPerController = data.getVar('serverMoveTimestampExpiredPerController')
+                const killsPerPlayerController = data.getVar('killsPerPlayerController')
+                const knifeWoundsPerPlayerController = data.getVar('knifeWoundsPerPlayerController')
+                const steamIDToPlayerController = data.getVar('steamIDToPlayerController')
                 const playerControllerHistory = steamIDToPlayerController.get(playerSteamID);
                 if (!playerControllerHistory) continue;
                 const playerControllerToPlayerName = data.getVar('playerControllerToPlayerName')
@@ -374,7 +377,8 @@ function drawGraph(logPath, fileNameNoExt) {
                     let stringifiedConnectionTime = connectionTimesByPlayerController[ playerController ].toLocaleString();
                     let stringifiedDisconnectionTime = disconnectionTimesByPlayerController[ playerController ]?.toLocaleString() || "N/A"
 
-                    console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[90m ${playerController}\x1b[90m: \x1b[91m${killsPerPlayerController[ playerController ] || 0} kills - (${stringifiedConnectionTime} - ${stringifiedDisconnectionTime})\x1b[0m`)
+                    console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[90m ${playerController}\x1b[90m: \x1b[37m(${stringifiedConnectionTime} - ${stringifiedDisconnectionTime})\x1b[90m`)
+                    console.log(`\x1b[1m\x1b[34m#\x1b[0m  >>>>> \x1b[91m${explosionCountersPerController[playerController] || 0} Explosions, ${serverMoveTimestampExpiredPerController[playerController] || 0} ServerMoveTimeStampExpired, ${killsPerPlayerController[playerController] || 0} Kills, ${knifeWoundsPerPlayerController[playerController] || 0} Knife Wounds\x1b[0m`)
                 }
             }
 
