@@ -50,7 +50,10 @@ export default class Analyzer extends EventEmitter {
             data.setVar('playerControllerToSteamID', [])
             data.setVar('steamIDToPlayerController', new Map())
             data.setVar('killsPerPlayerController', [])
+
             data.setVar('knifeWoundsPerPlayerController', [])
+            const knives = ['BP_AK74Bayonet', 'BP_AKMBayonet', 'BP_Bayonet2000', 'BP_G3Bayonet', 'BP_M9Bayonet', 'BP_OKC-3S', 'BP_QNL-95_Bayonet', 'BP_SA80Bayonet', 'BP_SKS_Bayonet', 'BP_SKS_Optic_Bayonet', 'BP_SOCP_Knife_AUS'];
+
             data.setVar('connectionTimesByPlayerController', [])
             data.setVar('disconnectionTimesByPlayerController', [])
             data.setVar('playerControllerToNetspeed', [])
@@ -295,7 +298,6 @@ export default class Analyzer extends EventEmitter {
                             playerController = playerNameToPlayerController[pawnsToPlayerNames[res[2]]]
                         }
                         let weaponUsed = res[2]
-                        let knives = ['BP_AK74Bayonet', 'BP_AKMBayonet', 'BP_Bayonet2000', 'BP_G3Bayonet', 'BP_M9Bayonet', 'BP_OKC-3S', 'BP_QNL-95_Bayonet', 'BP_SA80Bayonet', 'BP_SKS_Bayonet', 'BP_SKS_Optic_Bayonet', 'BP_SOCP_Knife_AUS'];
                         // If weaponUsed is any of the knives
                         if (!knives.includes(weaponUsed)) {
                             return;
@@ -369,7 +371,6 @@ export default class Analyzer extends EventEmitter {
                         let playerController = res[5]
 
                         let weaponUsed = res[9]
-                        let knives = ['BP_AK74Bayonet', 'BP_AKMBayonet', 'BP_Bayonet2000', 'BP_G3Bayonet', 'BP_M9Bayonet', 'BP_OKC-3S', 'BP_QNL-95_Bayonet', 'BP_SA80Bayonet', 'BP_SKS_Bayonet', 'BP_SKS_Optic_Bayonet', 'BP_SOCP_Knife_AUS'];
                         // If weaponUsed is any of the knives
                         if (!knives.includes(weaponUsed)) {
                             return;
