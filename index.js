@@ -362,10 +362,6 @@ function drawGraph(logPath, fileNameNoExt) {
             for (let playerSteamID of suspectedCheaters) {
                 const disconnectionTimesByPlayerController = data.getVar('disconnectionTimesByPlayerController')
                 const connectionTimesByPlayerController = data.getVar('connectionTimesByPlayerController')
-                const explosionCountersPerController = data.getVar('explosionCountersPerController')
-                const serverMoveTimestampExpiredPerController = data.getVar('serverMoveTimestampExpiredPerController')
-                const killsPerPlayerController = data.getVar('killsPerPlayerController')
-                const knifeWoundsPerPlayerController = data.getVar('knifeWoundsPerPlayerController')
                 const steamIDToPlayerController = data.getVar('steamIDToPlayerController')
                 const playerControllerHistory = steamIDToPlayerController.get(playerSteamID);
                 if (!playerControllerHistory) continue;
