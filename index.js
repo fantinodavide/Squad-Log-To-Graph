@@ -378,7 +378,6 @@ function drawGraph(logPath, fileNameNoExt) {
                     let stringifiedDisconnectionTime = disconnectionTimesByPlayerController[ playerController ]?.toLocaleString() || "N/A"
 
                     console.log(`\x1b[1m\x1b[34m#\x1b[0m  > \x1b[90m ${playerController}\x1b[90m: \x1b[37m(${stringifiedConnectionTime} - ${stringifiedDisconnectionTime})\x1b[90m`)
-                    console.log(`\x1b[1m\x1b[34m#\x1b[0m  >>>>> \x1b[91m${explosionCountersPerController[playerController] || 0} Explosions, ${serverMoveTimestampExpiredPerController[playerController] || 0} ServerMoveTimeStampExpired, ${killsPerPlayerController[playerController] || 0} Kills, ${knifeWoundsPerPlayerController[playerController] || 0} Knife Wounds\x1b[0m`)
                 }
             }
 
