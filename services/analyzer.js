@@ -86,7 +86,7 @@ export default class Analyzer extends EventEmitter {
                     return;
                 }
 
-                regex = /LogNetVersion: Set ProjectVersion to (V.+)\. Version/
+                regex = /LogNetVersion: Set ProjectVersion to (V|v.+)\. Version/
                 res = regex.exec(line);
                 if (res) {
                     let serverVersion = res[ 1 ];
