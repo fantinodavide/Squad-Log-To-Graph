@@ -203,7 +203,7 @@ function drawGraph(logPath, fileNameNoExt) {
                         {
                             pointStyle: 'circle',
                             pointRadius: 0,
-                            label: 'KnifeWouds',
+                            label: 'KnifeWounds',
                             data: data.getCounterData('PlayerKnifeWounds'),
                             backgroundColor: "#ff0000",
                             borderColor: "#ff0000"
